@@ -290,6 +290,29 @@ app.post('/api/places/ensure', writeLimiter, async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
 });
 
+// Geocode search — find a restaurant name, area, or landmark (OSM Nominatim).
+const geoCache = new Map();
+app.get('/api/geocode', async (req, res) => {
+  const q = String(req.query.q || '').trim().slice(0, 120);
+  if (q.length < 2) return res.json({ results: [] });
+  const key = q.toLowerCase();
+  const hit = geoCache.get(key);
+  if (hit && Date.now() - hit.t < 10 * 60 * 1000) return res.json({ results: hit.v });
+  try {
+    const u = 'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=0&limit=6&countrycodes=in&q=' + encodeURIComponent(q);
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 8000);
+    const r = await fetch(u, { headers: { 'User-Agent': 'FoodSafePro/1.0 (citizens food-safety project)', 'Accept': 'application/json', 'Accept-Language': 'en' }, signal: ctrl.signal });
+    clearTimeout(to);
+    if (!r.ok) throw new Error('geocode ' + r.status);
+    const j = await r.json();
+    const results = (j || []).map((x) => ({ label: x.display_name, lat: parseFloat(x.lat), lng: parseFloat(x.lon), type: x.type }))
+      .filter((x) => isFinite(x.lat) && isFinite(x.lng)).slice(0, 6);
+    geoCache.set(key, { t: Date.now(), v: results });
+    res.json({ results });
+  } catch (e) { console.warn('[geocode]', e.message); res.json({ results: [], error: true }); }
+});
+
 // =====================  ADMIN  =====================
 function adminAuth(req, res, next) {
   const user = process.env.ADMIN_USER || 'admin';

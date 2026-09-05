@@ -30,6 +30,7 @@
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
 
   var markerLayer = L.layerGroup().addTo(map);
+  var searchLayer = L.layerGroup().addTo(map);
   var markersByKey = {}, placeByKey = {};
   var selectedKey = null, addMode = false, loadTimer = null, loadSeq = 0;
 
@@ -164,6 +165,44 @@
       loadForView(false); say('Centred on you.');
     }, function () { say('Could not get location — showing default area.'); }, { timeout: 8000 });
   };
+
+  // ---------------- search (geocode) ----------------
+  var searchBox = document.getElementById('placeSearch');
+  var searchResults = document.getElementById('searchResults');
+  var searchT, lastResults = [];
+  function renderSearchResults(list) {
+    lastResults = list;
+    if (!list.length) { searchResults.innerHTML = '<div class="sr-empty">No matches — try adding the city, e.g. “Cafe Andora Mumbai”.</div>'; searchResults.hidden = false; return; }
+    searchResults.innerHTML = list.map(function (r, i) {
+      var parts = r.label.split(', ');
+      return '<div class="sr" data-i="' + i + '"><b>' + esc(parts[0]) + '</b><small>' + esc(parts.slice(1, 4).join(', ')) + '</small></div>';
+    }).join('');
+    searchResults.hidden = false;
+  }
+  function chooseResult(r) {
+    if (!r) return;
+    searchResults.hidden = true;
+    searchBox.value = r.label.split(', ')[0];
+    map.setView([r.lat, r.lng], 16);
+    searchLayer.clearLayers();
+    L.circleMarker([r.lat, r.lng], { radius: 10, color: '#2E86AB', weight: 3, fillColor: '#2E86AB', fillOpacity: 0.25 }).addTo(searchLayer);
+    loadForView(false);
+  }
+  searchBox.addEventListener('input', function () {
+    var q = searchBox.value.trim();
+    clearTimeout(searchT);
+    if (q.length < 2) { searchResults.hidden = true; return; }
+    searchT = setTimeout(async function () {
+      try { var d = await api('/api/geocode?q=' + encodeURIComponent(q)); renderSearchResults(d.results || []); }
+      catch (e) { /* silent */ }
+    }, 350);
+  });
+  searchBox.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); chooseResult(lastResults[0]); }
+    else if (e.key === 'Escape') { searchResults.hidden = true; }
+  });
+  searchResults.addEventListener('click', function (e) { var el = e.target.closest('[data-i]'); if (el) chooseResult(lastResults[+el.getAttribute('data-i')]); });
+  document.addEventListener('click', function (e) { if (!e.target.closest('.mapsearch')) searchResults.hidden = true; });
 
   // ---------------- add a kitchen ----------------
   var addBtn = document.getElementById('addBtn'), addBanner = document.getElementById('addBanner');

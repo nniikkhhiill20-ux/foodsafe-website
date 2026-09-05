@@ -92,6 +92,15 @@ section{padding:74px 0}
 .maphead .loc{font-size:13px;color:var(--muted);font-family:var(--f-mono)}
 .maphead .loc b{color:var(--ink)}
 .maphead .mapbtns{display:flex;gap:8px;flex-wrap:wrap}
+.mapsearch{position:relative;padding:12px 18px;border-bottom:1px solid var(--line)}
+.mapsearch input[type=text]{width:100%}
+.search-results{position:absolute;left:18px;right:18px;top:calc(100% - 4px);background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:1200;max-height:280px;overflow:auto}
+.search-results[hidden]{display:none}
+.search-results .sr{padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--line);line-height:1.35}
+.search-results .sr:last-child{border-bottom:none}
+.search-results .sr:hover{background:var(--surface-2)}
+.search-results .sr small{display:block;color:var(--muted);font-size:12px;margin-top:1px}
+.search-results .sr-empty{padding:12px 14px;color:var(--muted);font-size:13px}
 #map{width:100%;height:420px;background:var(--surface-2)}
 .leaflet-container{font-family:var(--f-body)}
 .maplegend{display:flex;gap:14px;flex-wrap:wrap;padding:14px 18px;font-family:var(--f-mono);font-size:11px;color:var(--muted);border-top:1px solid var(--line)}
