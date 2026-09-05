@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FoodSafe Pro — Grade Before You Eat</title>
+<meta name="description" content="A citizens' food-safety movement for India. Take the pledge, rate the kitchens near you, and build a public, honest record of who's safe to eat from.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%230F212C'/%3E%3Cpath d='M33 52l11 11 22-26' fill='none' stroke='%23E8A200' stroke-width='9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="noticebar">Citizens' food-safety movement &nbsp;·&nbsp; Community-powered &nbsp;·&nbsp; <b>Independent — not affiliated with any government body or official</b></div>
+
+<nav>
+  <div class="wrap nav-in">
+    <a href="#top" class="brand">
+      <svg class="seal-sm" viewBox="0 0 100 100" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="4"><circle cx="50" cy="50" r="46"/><circle cx="50" cy="50" r="34" stroke-dasharray="3 5"/></g><path d="M35 52l10 10 20-24" fill="none" stroke="var(--gold)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      FoodSafe&nbsp;Pro
+    </a>
+    <div class="nav-links">
+      <a href="#pledge">The pledge</a>
+      <a href="#rate">Rate nearby</a>
+      <a href="#national">National view</a>
+      <a href="#ethos">The ethos</a>
+    </div>
+    <a href="#pledge" class="btn btn-stamp">Take the pledge</a>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="kicker">A citizens' food-safety movement</div>
+      <h1>Know the<br>grade before<br>you <span class="hl">eat.</span></h1>
+      <p class="lede">Take the pledge. Rate the kitchens near you. Together we build the one thing India's food scene has never had — a public, honest record of who's safe to eat from.</p>
+      <div class="cta-row">
+        <a href="#pledge" class="btn btn-gold btn-lg">Take the pledge</a>
+        <a href="#rate" class="btn btn-ghost btn-lg" style="color:var(--on-navy);border-color:rgba(255,255,255,.5)">Rate places near you</a>
+      </div>
+      <div class="movement">Powered by diners, not middlemen — <b>zero-tolerance</b> food safety, in the open.</div>
+    </div>
+    <div class="hero-art">
+      <svg class="bigseal spin" viewBox="0 0 200 200" role="img" aria-label="FoodSafe Pro inspection seal">
+        <defs><path id="cpath" d="M100,100 m-74,0 a74,74 0 1,1 148,0 a74,74 0 1,1 -148,0"/></defs>
+        <circle cx="100" cy="100" r="92" fill="none" stroke="var(--gold)" stroke-width="2"/>
+        <circle cx="100" cy="100" r="82" fill="none" stroke="var(--gold)" stroke-width="6"/>
+        <circle cx="100" cy="100" r="58" fill="none" stroke="rgba(234,241,243,.35)" stroke-width="1.5" stroke-dasharray="2 6"/>
+        <text font-family="IBM Plex Mono,monospace" font-size="12" letter-spacing="4" fill="var(--gold)" font-weight="600">
+          <textPath href="#cpath" startOffset="0%">FOODSAFE PRO · BY THE PEOPLE · TRANSPARENT · PORTABLE · </textPath>
+        </text>
+      </svg>
+      <svg class="bigseal" viewBox="0 0 200 200" style="position:absolute;width:min(130px,30%);pointer-events:none" aria-hidden="true">
+        <circle cx="100" cy="100" r="70" fill="var(--green)"/>
+        <text x="100" y="118" text-anchor="middle" font-family="Anton,sans-serif" font-size="86" fill="#fff">A</text>
+      </svg>
+    </div>
+  </div>
+</header>
+
+<section class="problem">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">Why this movement exists</div>
+      <h2>Your food's safety is a black box.</h2>
+      <p>Kitchens get inspected, then the result vanishes into a drawer. Diners never see it, scores don't follow a restaurant between apps, and no one is accountable to you. It's time the public kept the record.</p>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="tag">Complaints</div><div class="num">21,000+</div><div class="lbl">food-safety complaints filed by consumers in a single year — most never traced to a public score.</div></div>
+      <div class="stat"><div class="tag">Portability</div><div class="num">0%</div><div class="lbl">of audit results follow a restaurant across delivery platforms. Every app starts from zero.</div></div>
+      <div class="stat"><div class="tag">Live now</div><div class="num" id="statReviews2">—</div><div class="lbl">community reviews already logged on this public register — and counting.</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="rate" id="rate">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">Rate nearby</div>
+      <h2>Kitchens within 3&nbsp;km of you.</h2>
+      <p>This is the heart of it. See the outlets around you on the map, tap one, and leave an honest rating and review. Can't find a place? Add it. The diners hold the pen here — not the delivery apps.</p>
+    </div>
+    <div class="rate-panel">
+      <div class="mapcard">
+        <div class="maphead">
+          <div class="loc">Showing: <b id="locLabel">Mumbai (default)</b></div>
+          <div class="mapbtns">
+            <button class="btn btn-ghost" id="geoBtn" style="padding:8px 14px;font-size:13px">Use my location</button>
+            <button class="btn btn-gold" id="addBtn" style="padding:8px 14px;font-size:13px">Add a kitchen</button>
+          </div>
+        </div>
+        <div class="addmode-banner" id="addBanner">Click the map to drop your kitchen's location…</div>
+        <div id="map"></div>
+        <div class="maplegend">
+          <span><i style="background:var(--green)"></i>Grade A</span>
+          <span><i style="background:var(--amber)"></i>Grade B</span>
+          <span><i style="background:var(--red)"></i>Grade C / D</span>
+          <span><i style="background:var(--muted)"></i>No reviews yet</span>
+        </div>
+        <div class="geo-note">Your location is used only in your browser to centre the map — it is never uploaded. Reviews and kitchens are shared publicly on this register.</div>
+      </div>
+      <div class="rev" id="revCard" aria-live="polite">
+        <div class="rev-empty"><div class="big">Pick a kitchen</div><div>Tap any pin on the map to see its community grade and add your review.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="pledge" id="pledge">
+  <svg class="sealbg" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="92" fill="none" stroke="#fff" stroke-width="3"/><circle cx="100" cy="100" r="72" fill="none" stroke="#fff" stroke-width="8"/></svg>
+  <div class="wrap pledge-in">
+    <div class="kicker" style="color:var(--gold)">Take the pledge</div>
+    <h2>I will <span class="hl">check the grade</span> before I order.</h2>
+    <p>Every movement starts with a promise. Add yours: pledge to check the grade, rate the places you eat, and hold kitchens to a standard. Then send it to three people — that's how this spreads.</p>
+    <div class="pledge-box">
+      <div class="pledge-count" id="pledgeCount">—</div>
+      <div class="pledge-count-lbl">citizens have pledged</div>
+      <div id="pledgeState" style="margin-top:20px">
+        <button class="btn btn-gold btn-lg" id="pledgeBtn" style="font-size:18px;padding:16px 34px">I take the pledge</button>
+      </div>
+      <div class="goal">
+        Goal: <b style="color:var(--gold)">1,00,000</b> citizens demanding visible grades
+        <div class="goalbar"><i id="goalFill" style="width:2%"></i></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="national" id="national">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">The bigger picture</div>
+      <h2>One record. All of India.</h2>
+      <p>Every rating a diner leaves rolls up into a living national picture — the view an administrator uses to see, city by city, where food is safe and where it isn't. These numbers are live.</p>
+    </div>
+    <div class="nat-tiles">
+      <div class="tile"><div class="tn" id="statReviews">—</div><div class="tl">community reviews logged</div></div>
+      <div class="tile"><div class="tn" id="statOutlets">—</div><div class="tl">outlets on the register</div></div>
+      <div class="tile"><div class="tn" id="statScore">—</div><div class="tl">avg community score</div></div>
+      <div class="tile"><div class="tn" id="statCities">—</div><div class="tl">cities live</div></div>
+    </div>
+    <div class="nat-cta">
+      <a href="/admin" class="btn btn-stamp">Open the national map (admin)</a>
+      <span class="mono" style="font-size:12px;color:var(--muted)">Password-protected administrator console with the full all-India map.</span>
+    </div>
+  </div>
+</section>
+
+<section class="manifesto" id="ethos">
+  <div class="wrap man-grid">
+    <div>
+      <div class="kicker" style="color:var(--gold)">The ethos</div>
+      <h2>Zero tolerance.<br><span class="hl">Zero excuses.</span></h2>
+    </div>
+    <div class="man-body">
+      <p>India already knows what fearless enforcement looks like. Officers like <b>Tukaram Mundhe</b> built a public reputation for one thing: rules applied to everyone, no favours, no fear. Kitchens should be held to that same bar — and diners should be able to see it.</p>
+      <ul class="creed">
+        <li><span class="x">01</span><span>If a kitchen is clean, the community says so — <b>in public</b>. If it isn't, that's public too.</span></li>
+        <li><span class="x">02</span><span>The record belongs to <b>diners</b>, and it travels with the restaurant everywhere.</span></li>
+        <li><span class="x">03</span><span>No pay-to-pass. No quiet edits. The people's record is the record.</span></li>
+      </ul>
+      <div class="disclaimer">This is an independent citizens' initiative. It is <b>not affiliated with, endorsed by, or connected to</b> Tukaram Mundhe, any government official, the FSSAI, or any delivery platform. His name is referenced only as a widely-recognised example of strict public-service enforcement.</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <div class="foot-brand">
+          <svg width="30" height="30" viewBox="0 0 100 100" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="4"><circle cx="50" cy="50" r="46"/></g><path d="M35 52l10 10 20-24" fill="none" stroke="var(--gold)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          FoodSafe Pro
+        </div>
+        <p class="discl">A citizens' movement for a public, community-powered food-safety record for India — built to make what we eat accountable and transparent.</p>
+      </div>
+      <div><a href="#pledge" class="btn btn-stamp">Take the pledge</a></div>
+    </div>
+    <div class="fine" id="footFine">
+      Community-powered register · Reviews are contributed by the public and reflect personal opinions, not official inspection results. Restaurants seeded for launch are illustrative sample data. Not affiliated with, endorsed by, or connected to Tukaram Mundhe, the FSSAI, any government body, or Swiggy / Zomato / Uber Eats / Foodpanda. Names referenced for context only.
+    </div>
+  </div>
+</footer>
+
+<div class="modal-bg" id="addModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addTitle">
+    <h3 id="addTitle">Add a kitchen</h3>
+    <p style="color:var(--muted);font-size:14px;margin:0">Location picked from the map. Fill in the details to put it on the public register.</p>
+    <label for="fName">Kitchen name</label>
+    <input type="text" id="fName" maxlength="120" placeholder="e.g. Sharma Ji Ka Dhaba">
+    <div class="row2">
+      <div><label for="fCuisine">Cuisine</label><input type="text" id="fCuisine" maxlength="60" placeholder="e.g. North Indian"></div>
+      <div><label for="fCity">City</label><input type="text" id="fCity" maxlength="80" placeholder="e.g. Mumbai"></div>
+    </div>
+    <label for="fAddr">Area / address</label>
+    <input type="text" id="fAddr" maxlength="160" placeholder="e.g. Linking Road, Bandra">
+    <div class="formerr" id="addErr"></div>
+    <div class="submitrow" style="margin-top:16px">
+      <button class="btn btn-stamp" id="addSubmit">Add to register</button>
+      <button class="btn btn-ghost" id="addCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="/app.js"></script>
+</body>
+</html>
