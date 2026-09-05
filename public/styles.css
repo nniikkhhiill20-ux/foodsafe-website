@@ -106,6 +106,14 @@ section{padding:74px 0}
 .search-results .sr small{display:block;color:var(--muted);font-size:12px;margin-top:1px}
 .search-results .sr-empty{padding:12px 14px;color:var(--muted);font-size:13px}
 #map{width:100%;height:420px;background:var(--surface-2)}
+.beacon{background:transparent!important;border:none!important}
+.beacon-core{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;background:var(--stamp);border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.4);z-index:3}
+.beacon-ring{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--stamp);opacity:.55;z-index:1;animation:beaconpulse 1.6s ease-out infinite}
+.beacon-ring2{animation-delay:.8s}
+@keyframes beaconpulse{0%{transform:scale(1);opacity:.55}100%{transform:scale(4.5);opacity:0}}
+.beacon-label{background:var(--navy);color:#fff;border:none;font-family:var(--f-body);font-weight:600;font-size:12px;padding:4px 9px;border-radius:8px;box-shadow:var(--shadow)}
+.beacon-label::before{border-top-color:var(--navy)}
+@media(prefers-reduced-motion:reduce){.beacon-ring,.beacon-ring2{animation:none;opacity:.25;transform:scale(2.5)}}
 .leaflet-container{font-family:var(--f-body)}
 .maplegend{display:flex;gap:14px;flex-wrap:wrap;padding:14px 18px;font-family:var(--f-mono);font-size:11px;color:var(--muted);border-top:1px solid var(--line)}
 .maplegend span{display:inline-flex;align-items:center;gap:6px}

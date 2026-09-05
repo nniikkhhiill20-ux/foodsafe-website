@@ -166,6 +166,14 @@
     }, function () { say('Could not get location — showing default area.'); }, { timeout: 8000 });
   };
 
+  // A pulsing beacon marker at a searched location.
+  function dropBeacon(lat, lng, label) {
+    searchLayer.clearLayers();
+    var icon = L.divIcon({ className: 'beacon', html: '<div class="beacon-ring"></div><div class="beacon-ring beacon-ring2"></div><div class="beacon-core"></div>', iconSize: [22, 22], iconAnchor: [11, 11] });
+    var mk = L.marker([lat, lng], { icon: icon, interactive: false, zIndexOffset: 1000, keyboard: false }).addTo(searchLayer);
+    if (label) mk.bindTooltip(label, { permanent: true, direction: 'top', offset: [0, -10], className: 'beacon-label' }).openTooltip();
+  }
+
   // ---------------- search (geocode) ----------------
   var searchBox = document.getElementById('placeSearch');
   var searchResults = document.getElementById('searchResults');
@@ -184,8 +192,7 @@
     searchResults.hidden = true;
     searchBox.value = r.label.split(', ')[0];
     map.setView([r.lat, r.lng], 16);
-    searchLayer.clearLayers();
-    L.circleMarker([r.lat, r.lng], { radius: 10, color: '#2E86AB', weight: 3, fillColor: '#2E86AB', fillOpacity: 0.25 }).addTo(searchLayer);
+    dropBeacon(r.lat, r.lng, r.label.split(', ')[0]);
     loadForView(false);
   }
   searchBox.addEventListener('input', function () {
