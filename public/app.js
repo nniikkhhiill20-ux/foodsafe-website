@@ -101,7 +101,7 @@
     }).join('');
     var fssaiHtml = o.fssai
       ? '<div class="fssai on"><span>FSSAI licence <b>on record</b> · <span class="mono">' + esc(o.fssai) + '</span></span> <a href="https://foscos.fssai.gov.in/" target="_blank" rel="noopener">verify ↗</a></div>'
-      : '<div class="fssai off"><span>FSSAI licence not recorded yet</span> <a href="https://foscos.fssai.gov.in/" target="_blank" rel="noopener">look up ↗</a></div>';
+      : '';
     revCard.innerHTML =
       '<div class="rev-top">' +
         '<div class="grade-stamp ' + (hasR ? '' : 'empty') + '" style="' + (hasR ? 'background:' + col : '') + '"><span class="g">' + (o.grade || '?') + '</span><span class="s">GRADE</span></div>' +
@@ -119,7 +119,6 @@
           '<div class="starpick" id="starpick">' + [1, 2, 3, 4, 5].map(function (i) { return '<button type="button" data-s="' + i + '" aria-label="' + i + ' star">★</button>'; }).join('') + '</div>' +
           '<div class="flagpick" id="flagpick">' + FLAGSET.map(function (f) { return '<span class="flag" role="button" tabindex="0" data-f="' + esc(f) + '">' + esc(f) + '</span>'; }).join('') + '</div>' +
           '<input type="text" id="authorBox" maxlength="40" placeholder="Your name (optional)" style="margin-bottom:10px">' +
-          (o.fssai ? '' : '<input type="text" id="fssaiBox" maxlength="20" placeholder="FSSAI licence no. — 14 digits (optional)" style="margin-bottom:10px">') +
           '<textarea id="cmtBox" maxlength="600" placeholder="What did you notice about hygiene, freshness, packaging? Be honest and specific."></textarea>' +
           '<div class="formerr" id="formErr"></div>' +
           '<div class="submitrow"><button class="btn btn-stamp" id="submitRev">Post review</button>' +
