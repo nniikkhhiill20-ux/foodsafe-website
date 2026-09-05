@@ -12,6 +12,7 @@
     return Math.round(d / 365) + ' yr ago';
   }
   function nfmt(n) { return Number(n).toLocaleString('en-IN'); }
+  function keyOf(p) { return p.dbId ? 'd' + p.dbId : 'o' + p.osmId; }
 
   var toastEl = document.getElementById('toast'), toastT;
   function say(m) { toastEl.textContent = m; toastEl.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(function () { toastEl.classList.remove('show'); }, 2600); }
@@ -25,62 +26,73 @@
 
   // ---------------- map ----------------
   var DEFAULT = [19.0596, 72.8295];
-  var map = L.map('map', { scrollWheelZoom: false }).setView(DEFAULT, 13);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(map);
+  var map = L.map('map', { scrollWheelZoom: false }).setView(DEFAULT, 15);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
 
   var markerLayer = L.layerGroup().addTo(map);
-  var markersById = {};
-  var selectedId = null;
-  var addMode = false;
-  var loadTimer = null;
+  var markersByKey = {}, placeByKey = {};
+  var selectedKey = null, addMode = false, loadTimer = null, loadSeq = 0;
 
-  function renderMarkers(list) {
-    markerLayer.clearLayers(); markersById = {};
-    list.forEach(function (o) {
-      var col = o.grade ? gradeColor(o.grade) : COLORS.none;
-      var m = L.circleMarker([o.lat, o.lng], {
-        radius: o.id === selectedId ? 11 : 8, color: '#fff', weight: 2,
-        fillColor: col, fillOpacity: 0.95
-      });
-      m.bindTooltip(o.name + (o.grade ? ' · ' + o.grade : ' · new'), { direction: 'top' });
-      m.on('click', function () { selectRestaurant(o.id); });
-      m.addTo(markerLayer); markersById[o.id] = m;
+  function styleFor(p) {
+    var col = p.grade ? gradeColor(p.grade) : COLORS.none;
+    var sel = keyOf(p) === selectedKey;
+    return { radius: sel ? 11 : (p.reviewCount > 0 ? 8 : 6.5), color: '#fff', weight: 2, fillColor: col, fillOpacity: p.reviewCount > 0 ? 0.95 : 0.7 };
+  }
+  function renderMarkers(places) {
+    markerLayer.clearLayers(); markersByKey = {}; placeByKey = {};
+    places.forEach(function (p) {
+      var k = keyOf(p); placeByKey[k] = p;
+      var m = L.circleMarker([p.lat, p.lng], styleFor(p));
+      m.bindTooltip(p.name + (p.grade ? ' · ' + p.grade : (p.reviewCount ? '' : ' · unrated')), { direction: 'top' });
+      m.on('click', function () { selectPlace(p); });
+      m.addTo(markerLayer); markersByKey[k] = m;
     });
   }
+  function refreshStyles() { Object.keys(placeByKey).forEach(function (k) { if (markersByKey[k]) markersByKey[k].setStyle(styleFor(placeByKey[k])); }); }
 
   async function loadForView(fit) {
     var c = map.getCenter();
-    var radius = Math.min(20000, Math.round(c.distanceTo(map.getBounds().getNorthEast())));
+    var radius = Math.min(6000, Math.max(1200, Math.round(c.distanceTo(map.getBounds().getNorthEast()))));
+    var seq = ++loadSeq;
+    document.getElementById('locLabel').textContent = 'Loading nearby places…';
     try {
-      var list = await api('/api/restaurants/near?lat=' + c.lat + '&lng=' + c.lng + '&radius=' + radius);
-      renderMarkers(list);
-      if (fit && list.length) {
-        var b = L.latLngBounds(list.slice(0, 20).map(function (o) { return [o.lat, o.lng]; }));
-        b.extend([c.lat, c.lng]); map.fitBounds(b.pad(0.2), { maxZoom: 15 });
+      var res = await api('/api/places/near?lat=' + c.lat + '&lng=' + c.lng + '&radius=' + radius);
+      if (seq !== loadSeq) return; // a newer load superseded this one
+      renderMarkers(res.places);
+      document.getElementById('locLabel').textContent = res.places.length + ' places nearby';
+      if (fit && res.places.length) {
+        var b = L.latLngBounds(res.places.slice(0, 25).map(function (o) { return [o.lat, o.lng]; }));
+        b.extend([c.lat, c.lng]); map.fitBounds(b.pad(0.2), { maxZoom: 16 });
       }
-      if (!list.length) say('No kitchens on the register here yet — be the first to add one.');
-    } catch (e) { say('Could not load kitchens: ' + e.message); }
+      if (!res.places.length) say('No places found here — try “Add a kitchen”.');
+      else if (res.osmError) say('Showing saved places (OpenStreetMap was slow to respond).');
+    } catch (e) { document.getElementById('locLabel').textContent = 'Could not load'; say('Could not load places: ' + e.message); }
   }
-  map.on('moveend', function () { if (addMode) return; clearTimeout(loadTimer); loadTimer = setTimeout(function () { loadForView(false); }, 350); });
+  map.on('moveend', function () { if (addMode) return; clearTimeout(loadTimer); loadTimer = setTimeout(function () { loadForView(false); }, 400); });
 
   // ---------------- review card ----------------
   var revCard = document.getElementById('revCard');
   var pickStars = 0, pickFlags = {};
 
-  async function selectRestaurant(id) {
-    selectedId = id;
-    Object.keys(markersById).forEach(function (k) { markersById[k].setStyle({ radius: (+k === id) ? 11 : 8 }); });
-    revCard.innerHTML = '<div class="rev-empty"><div class="big">Loading…</div></div>';
-    try { renderRev(await api('/api/restaurants/' + id)); }
-    catch (e) { revCard.innerHTML = '<div class="rev-empty"><div class="big">Error</div><div>' + esc(e.message) + '</div></div>'; }
+  function placeToDetail(p) {
+    return { id: p.dbId || null, osmId: p.osmId || null, name: p.name, cuisine: p.cuisine, city: p.city, lat: p.lat, lng: p.lng, source: p.source, reviewCount: 0, avgStars: 0, score: 0, grade: null, flags: [], reviews: [] };
+  }
+  async function selectPlace(p) {
+    selectedKey = keyOf(p); refreshStyles();
+    if (p.dbId) {
+      revCard.innerHTML = '<div class="rev-empty"><div class="big">Loading…</div></div>';
+      try { var d = await api('/api/restaurants/' + p.dbId); d.osmId = p.osmId || d.osm_id || null; d.lat = p.lat; d.lng = p.lng; d.source = p.source; renderRev(d); }
+      catch (e) { revCard.innerHTML = '<div class="rev-empty"><div class="big">Error</div><div>' + esc(e.message) + '</div></div>'; }
+    } else {
+      renderRev(placeToDetail(p));
+    }
   }
 
   function renderRev(o) {
     pickStars = 0; pickFlags = {};
     var hasR = o.reviewCount > 0;
     var col = o.grade ? gradeColor(o.grade) : COLORS.none;
+    var srcTag = o.source === 'osm' ? 'OpenStreetMap' : (o.source === 'community' ? 'community-added' : '');
     var flagsHtml = (o.flags || []).map(function (f) { return '<span class="flag">' + esc(f.flag) + ' <b>' + f.c + '</b></span>'; }).join('');
     var cmts = (o.reviews || []).map(function (r) {
       return '<div class="cmt"><div class="meta"><span class="st">' + starStr(r.stars).slice(0, r.stars) + '</span> ' + esc(r.author) + ' · ' + relTime(r.createdAt) + '</div>' +
@@ -90,7 +102,7 @@
       '<div class="rev-top">' +
         '<div class="grade-stamp ' + (hasR ? '' : 'empty') + '" style="' + (hasR ? 'background:' + col : '') + '"><span class="g">' + (o.grade || '?') + '</span><span class="s">GRADE</span></div>' +
         '<div><div class="name">' + esc(o.name) + '</div>' +
-          '<div class="sub">' + esc(o.cuisine || '') + (o.city ? ' · ' + esc(o.city) : '') + ' · score ' + (hasR ? o.score + '/100' : 'unrated') + '</div>' +
+          '<div class="sub">' + esc(o.cuisine || 'Restaurant') + (o.city ? ' · ' + esc(o.city) : '') + ' · ' + (hasR ? 'score ' + o.score + '/100' : 'unrated' + (srcTag ? ' · ' + srcTag : '')) + '</div>' +
           '<div class="stars">' + starStr(o.avgStars) + '<b>' + (hasR ? o.avgStars.toFixed(1) + ' · ' + nfmt(o.reviewCount) + ' review' + (o.reviewCount === 1 ? '' : 's') : 'no reviews yet') + '</b></div>' +
         '</div></div>' +
       '<div class="rev-body">' +
@@ -129,14 +141,18 @@
       author: document.getElementById('authorBox').value.trim(),
       flags: Object.keys(pickFlags).filter(function (f) { return pickFlags[f]; })
     };
-    var btn = document.getElementById('submitRev'); btn.textContent = 'Posting…';
+    var btn = document.getElementById('submitRev'); btn.textContent = 'Posting…'; btn.disabled = true;
     try {
-      await api('/api/restaurants/' + o.id + '/reviews', { method: 'POST', body: JSON.stringify(body) });
+      var id = o.id;
+      if (!id) { // an OSM place not yet in our DB — create it first
+        var ens = await api('/api/places/ensure', { method: 'POST', body: JSON.stringify({ osmId: o.osmId, name: o.name, cuisine: o.cuisine, city: o.city, lat: o.lat, lng: o.lng }) });
+        id = ens.id;
+      }
+      await api('/api/restaurants/' + id + '/reviews', { method: 'POST', body: JSON.stringify(body) });
       say('Review posted — thank you for keeping it honest.');
-      await selectRestaurant(o.id);
-      loadForView(false);
-      loadStats();
-    } catch (e) { document.getElementById('formErr').textContent = e.message; btn.textContent = 'Post review'; }
+      await selectPlace({ dbId: id, osmId: o.osmId, name: o.name, cuisine: o.cuisine, city: o.city, lat: o.lat, lng: o.lng, source: o.source });
+      loadForView(false); loadStats();
+    } catch (e) { document.getElementById('formErr').textContent = e.message; btn.textContent = 'Post review'; btn.disabled = false; }
   }
 
   // ---------------- geolocation ----------------
@@ -144,46 +160,31 @@
     if (!navigator.geolocation) { say('Location not available in this browser.'); return; }
     say('Requesting your location…');
     navigator.geolocation.getCurrentPosition(function (pos) {
-      map.setView([pos.coords.latitude, pos.coords.longitude], 14);
-      document.getElementById('locLabel').textContent = 'Near you';
-      loadForView(false);
-      say('Centred on you.');
+      map.setView([pos.coords.latitude, pos.coords.longitude], 16);
+      loadForView(false); say('Centred on you.');
     }, function () { say('Could not get location — showing default area.'); }, { timeout: 8000 });
   };
 
   // ---------------- add a kitchen ----------------
   var addBtn = document.getElementById('addBtn'), addBanner = document.getElementById('addBanner');
   var addModal = document.getElementById('addModal'), pickedLatLng = null;
-  function setAddMode(on) {
-    addMode = on; addBanner.classList.toggle('on', on);
-    addBtn.textContent = on ? 'Cancel adding' : 'Add a kitchen';
-    map.getContainer().style.cursor = on ? 'crosshair' : '';
-  }
+  function setAddMode(on) { addMode = on; addBanner.classList.toggle('on', on); addBtn.textContent = on ? 'Cancel adding' : 'Add a kitchen'; map.getContainer().style.cursor = on ? 'crosshair' : ''; }
   addBtn.onclick = function () { setAddMode(!addMode); };
-  map.on('click', function (e) {
-    if (!addMode) return;
-    pickedLatLng = e.latlng;
-    document.getElementById('addErr').textContent = '';
-    addModal.classList.add('on');
-  });
+  map.on('click', function (e) { if (!addMode) return; pickedLatLng = e.latlng; document.getElementById('addErr').textContent = ''; addModal.classList.add('on'); });
   document.getElementById('addCancel').onclick = function () { addModal.classList.remove('on'); };
   addModal.addEventListener('click', function (e) { if (e.target === addModal) addModal.classList.remove('on'); });
   document.getElementById('addSubmit').onclick = async function () {
     var name = document.getElementById('fName').value.trim();
     if (name.length < 2) { document.getElementById('addErr').textContent = 'Enter the kitchen name.'; return; }
     if (!pickedLatLng) { document.getElementById('addErr').textContent = 'Pick a location on the map.'; return; }
-    var body = {
-      name: name, cuisine: document.getElementById('fCuisine').value.trim(),
-      city: document.getElementById('fCity').value.trim(), address: document.getElementById('fAddr').value.trim(),
-      lat: pickedLatLng.lat, lng: pickedLatLng.lng
-    };
+    var body = { name: name, cuisine: document.getElementById('fCuisine').value.trim(), city: document.getElementById('fCity').value.trim(), address: document.getElementById('fAddr').value.trim(), lat: pickedLatLng.lat, lng: pickedLatLng.lng };
     try {
       var r = await api('/api/restaurants', { method: 'POST', body: JSON.stringify(body) });
       addModal.classList.remove('on'); setAddMode(false);
       ['fName', 'fCuisine', 'fCity', 'fAddr'].forEach(function (id) { document.getElementById(id).value = ''; });
       say('Added to the register — now leave the first review.');
       await loadForView(false);
-      selectRestaurant(r.id);
+      selectPlace({ dbId: r.id, name: body.name, cuisine: body.cuisine, city: body.city, lat: body.lat, lng: body.lng, source: 'community' });
       document.getElementById('revCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } catch (e) { document.getElementById('addErr').textContent = e.message; }
   };
@@ -195,7 +196,6 @@
     if (!t) { t = (crypto.randomUUID ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(36).slice(2))).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64); }
     return t;
   }
-  var pledgeBtn = document.getElementById('pledgeBtn');
   function showPledged() {
     var msg = encodeURIComponent('I just took the FoodSafe Pro pledge: I’ll check the grade before I order and rate the kitchens I eat from. Join the movement for public food safety. #GradeBeforeYouEat');
     var url = encodeURIComponent(location.href);
@@ -208,24 +208,18 @@
         '<button class="btn btn-ghost" style="color:var(--on-navy);border-color:rgba(255,255,255,.5)" id="copyLink">Copy link</button>' +
       '</div>';
     var cl = document.getElementById('copyLink');
-    if (cl) cl.onclick = function () {
-      if (navigator.clipboard) navigator.clipboard.writeText(location.href).then(function () { say('Link copied.'); }, function () { say('Copy failed.'); });
-    };
+    if (cl) cl.onclick = function () { if (navigator.clipboard) navigator.clipboard.writeText(location.href).then(function () { say('Link copied.'); }, function () { say('Copy failed.'); }); };
   }
-  pledgeBtn.onclick = async function () {
+  document.getElementById('pledgeBtn').onclick = async function () {
     var t = pledgeToken();
     try {
       var r = await api('/api/pledge', { method: 'POST', body: JSON.stringify({ token: t }) });
       localStorage.setItem(PKEY, t);
-      document.getElementById('pledgeCount').textContent = nfmt(r.count);
-      updateGoal(r.count);
+      document.getElementById('pledgeCount').textContent = nfmt(r.count); updateGoal(r.count);
       showPledged(); say('Pledge taken — thank you.');
     } catch (e) { say('Could not record pledge: ' + e.message); }
   };
-  function updateGoal(count) {
-    var pct = Math.max(2, Math.min(100, (count / 100000) * 100));
-    document.getElementById('goalFill').style.width = pct.toFixed(1) + '%';
-  }
+  function updateGoal(count) { document.getElementById('goalFill').style.width = Math.max(2, Math.min(100, (count / 100000) * 100)).toFixed(1) + '%'; }
 
   // ---------------- stats ----------------
   async function loadStats() {
@@ -236,9 +230,8 @@
       document.getElementById('statOutlets').textContent = nfmt(s.outlets);
       document.getElementById('statScore').textContent = s.avgScore;
       document.getElementById('statCities').textContent = s.cities;
-      document.getElementById('pledgeCount').textContent = nfmt(s.pledges);
-      updateGoal(s.pledges);
-    } catch (e) { /* leave placeholders */ }
+      document.getElementById('pledgeCount').textContent = nfmt(s.pledges); updateGoal(s.pledges);
+    } catch (e) {}
   }
 
   // ---------------- init ----------------

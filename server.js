@@ -58,7 +58,7 @@ app.get('/api/restaurants/near', async (req, res) => {
   try {
     const sql = `
       SELECT * FROM (
-        SELECT r.id, r.name, r.cuisine, r.address, r.city, r.lat, r.lng, r.source,
+        SELECT r.id, r.name, r.cuisine, r.address, r.city, r.lat, r.lng, r.source, r.osm_id,
           COALESCE(a.cnt,0)::int AS review_count, COALESCE(a.avg,0)::float AS avg_stars,
           (6371000 * acos(greatest(-1, least(1,
             cos(radians($1))*cos(radians(r.lat))*cos(radians(r.lng)-radians($2))
@@ -168,6 +168,125 @@ app.get('/api/stats', async (_req, res) => {
         (SELECT COUNT(*)::int FROM pledges) AS pledges`);
     const row = s.rows[0];
     res.json({ reviews: row.reviews, outlets: row.outlets, cities: row.cities, pledges: row.pledges, avgScore: Math.round((Number(row.avg_stars) || 0) * 20) });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
+});
+
+// =====================  LIVE PLACES (OpenStreetMap)  =====================
+// Real restaurants near a point, pulled live from OpenStreetMap's Overpass
+// API (open data, ODbL). Fetched server-side (no CORS/CSP issues), cached
+// briefly, and merged with our own reviewed outlets.
+const placeCache = new Map(); // key -> { t, v }
+const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+
+function haversineM(lat1, lng1, lat2, lng2) {
+  const R = 6371000, toR = Math.PI / 180;
+  const dLat = (lat2 - lat1) * toR, dLng = (lng2 - lng1) * toR;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * toR) * Math.cos(lat2 * toR) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+async function overpassNear(lat, lng, radius) {
+  const key = lat.toFixed(3) + ',' + lng.toFixed(3) + ',' + radius;
+  const hit = placeCache.get(key);
+  if (hit && Date.now() - hit.t < 5 * 60 * 1000) return hit.v;
+  const filter = '["amenity"~"^(restaurant|fast_food|cafe|food_court|ice_cream)$"]';
+  const q = `[out:json][timeout:20];(node${filter}(around:${radius},${lat},${lng});way${filter}(around:${radius},${lat},${lng}););out center 250;`;
+  let lastErr;
+  for (const url of OVERPASS) {
+    try {
+      const ctrl = new AbortController();
+      const to = setTimeout(() => ctrl.abort(), 12000);
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json', 'User-Agent': 'FoodSafePro/1.0 (citizens food-safety project)' },
+        body: 'data=' + encodeURIComponent(q), signal: ctrl.signal,
+      });
+      clearTimeout(to);
+      if (!r.ok) throw new Error('overpass ' + r.status);
+      const j = await r.json();
+      const places = (j.elements || []).map((e) => {
+        const t = e.tags || {}; if (!t.name) return null;
+        const plat = e.lat != null ? e.lat : (e.center && e.center.lat);
+        const plng = e.lon != null ? e.lon : (e.center && e.center.lon);
+        if (plat == null || plng == null) return null;
+        return { osmId: e.type + '/' + e.id, name: String(t.name).slice(0, 120), cuisine: String(t.cuisine || t.amenity || '').replace(/_/g, ' ').slice(0, 60), city: String(t['addr:city'] || '').slice(0, 80), lat: plat, lng: plng };
+      }).filter(Boolean);
+      placeCache.set(key, { t: Date.now(), v: places });
+      return places;
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error('overpass unavailable');
+}
+
+// Merged nearby: real OSM places + our reviewed/community outlets.
+app.get('/api/places/near', async (req, res) => {
+  const lat = parseFloat(req.query.lat), lng = parseFloat(req.query.lng);
+  let radius = parseInt(req.query.radius, 10);
+  if (!isFinite(lat) || !isFinite(lng)) return res.status(400).json({ error: 'lat and lng are required' });
+  if (!isFinite(radius)) radius = 3000;
+  radius = Math.max(200, Math.min(radius, 6000));
+  try {
+    const dbSql = `
+      SELECT * FROM (
+        SELECT r.id, r.name, r.cuisine, r.city, r.lat, r.lng, r.source, r.osm_id,
+          COALESCE(a.cnt,0)::int AS review_count, COALESCE(a.avg,0)::float AS avg_stars,
+          (6371000 * acos(greatest(-1, least(1,
+            cos(radians($1))*cos(radians(r.lat))*cos(radians(r.lng)-radians($2))
+            + sin(radians($1))*sin(radians(r.lat)))))) AS distance_m
+        FROM restaurants r
+        LEFT JOIN (SELECT restaurant_id, COUNT(*) cnt, AVG(stars) avg FROM reviews WHERE status='live' GROUP BY restaurant_id) a ON a.restaurant_id=r.id
+        WHERE r.status='live'
+      ) t WHERE distance_m <= $3 ORDER BY distance_m ASC LIMIT 300;`;
+    const dbRes = await query(dbSql, [lat, lng, radius]);
+
+    const byKey = new Map();
+    dbRes.rows.forEach((r) => {
+      const avg = Number(r.avg_stars) || 0;
+      const item = {
+        dbId: r.id, osmId: r.osm_id || null, name: r.name, cuisine: r.cuisine, city: r.city,
+        lat: r.lat, lng: r.lng, source: r.source, reviewCount: r.review_count, avgStars: avg,
+        score: Math.round(avg * 20), grade: r.review_count > 0 ? GRADE(avg) : null, distanceM: Math.round(r.distance_m),
+      };
+      byKey.set(r.osm_id ? 'o:' + r.osm_id : 'd:' + r.id, item);
+    });
+
+    let osmError = false;
+    try {
+      const osm = await overpassNear(lat, lng, radius);
+      osm.forEach((p) => {
+        if (byKey.has('o:' + p.osmId)) return; // already in our DB (keeps its reviews)
+        const d = haversineM(lat, lng, p.lat, p.lng);
+        if (d > radius) return;
+        byKey.set('o:' + p.osmId, {
+          dbId: null, osmId: p.osmId, name: p.name, cuisine: p.cuisine, city: p.city,
+          lat: p.lat, lng: p.lng, source: 'osm', reviewCount: 0, avgStars: 0, score: 0, grade: null, distanceM: Math.round(d),
+        });
+      });
+    } catch (e) { osmError = true; console.warn('[overpass]', e.message); }
+
+    const list = Array.from(byKey.values()).sort((a, b) => a.distanceM - b.distanceM).slice(0, 160);
+    res.json({ places: list, osmError });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
+});
+
+// Ensure an OSM place exists in our DB (so a review can attach to it).
+app.post('/api/places/ensure', writeLimiter, async (req, res) => {
+  const osmId = String(req.body.osmId || '').trim().slice(0, 40);
+  const name = String(req.body.name || '').trim().slice(0, 120);
+  const cuisine = String(req.body.cuisine || '').trim().slice(0, 60);
+  const city = String(req.body.city || '').trim().slice(0, 80);
+  const lat = parseFloat(req.body.lat), lng = parseFloat(req.body.lng);
+  if (!/^(node|way|relation)\/\d+$/.test(osmId)) return res.status(400).json({ error: 'bad osmId' });
+  if (name.length < 2 || !isFinite(lat) || !isFinite(lng)) return res.status(400).json({ error: 'bad place' });
+  try {
+    const { rows } = await query(
+      `INSERT INTO restaurants (name, cuisine, city, lat, lng, source, osm_id)
+       VALUES ($1,$2,$3,$4,$5,'osm',$6)
+       ON CONFLICT (osm_id) WHERE osm_id IS NOT NULL
+       DO UPDATE SET name = EXCLUDED.name
+       RETURNING id`,
+      [name, cuisine, city, lat, lng, osmId]);
+    res.json({ ok: true, id: rows[0].id });
   } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
 });
 

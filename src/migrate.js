@@ -19,8 +19,10 @@ CREATE TABLE IF NOT EXISTS restaurants (
   source      TEXT NOT NULL DEFAULT 'seed',   -- seed | community
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS osm_id TEXT;
 CREATE INDEX IF NOT EXISTS idx_rest_latlng ON restaurants (lat, lng);
 CREATE INDEX IF NOT EXISTS idx_rest_city   ON restaurants (city);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_rest_osm ON restaurants (osm_id) WHERE osm_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS reviews (
   id            SERIAL PRIMARY KEY,
