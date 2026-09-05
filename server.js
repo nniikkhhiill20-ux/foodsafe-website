@@ -176,7 +176,14 @@ app.get('/api/stats', async (_req, res) => {
 // API (open data, ODbL). Fetched server-side (no CORS/CSP issues), cached
 // briefly, and merged with our own reviewed outlets.
 const placeCache = new Map(); // key -> { t, v }
-const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+let lastOverpassError = '';
+const OVERPASS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+  'https://overpass.osm.ch/api/interpreter',
+];
 
 function haversineM(lat1, lng1, lat2, lng2) {
   const R = 6371000, toR = Math.PI / 180;
@@ -195,14 +202,14 @@ async function overpassNear(lat, lng, radius) {
   for (const url of OVERPASS) {
     try {
       const ctrl = new AbortController();
-      const to = setTimeout(() => ctrl.abort(), 12000);
+      const to = setTimeout(() => ctrl.abort(), 18000);
       const r = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json', 'User-Agent': 'FoodSafePro/1.0 (citizens food-safety project)' },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json', 'User-Agent': 'FoodSafePro/1.0 (citizens food-safety project; contact via foodsafe-website-production.up.railway.app)' },
         body: 'data=' + encodeURIComponent(q), signal: ctrl.signal,
       });
       clearTimeout(to);
-      if (!r.ok) throw new Error('overpass ' + r.status);
+      if (!r.ok) { const t = await r.text().catch(() => ''); throw new Error(url.split('/')[2] + ' HTTP ' + r.status + ' ' + t.slice(0, 80).replace(/\s+/g, ' ')); }
       const j = await r.json();
       const places = (j.elements || []).map((e) => {
         const t = e.tags || {}; if (!t.name) return null;
@@ -213,8 +220,9 @@ async function overpassNear(lat, lng, radius) {
       }).filter(Boolean);
       placeCache.set(key, { t: Date.now(), v: places });
       return places;
-    } catch (e) { lastErr = e; }
+    } catch (e) { lastErr = new Error(url.split('/')[2] + ': ' + e.message); }
   }
+  lastOverpassError = (lastErr && lastErr.message) || 'overpass unavailable';
   throw lastErr || new Error('overpass unavailable');
 }
 
@@ -250,7 +258,7 @@ app.get('/api/places/near', async (req, res) => {
       byKey.set(r.osm_id ? 'o:' + r.osm_id : 'd:' + r.id, item);
     });
 
-    let osmError = false;
+    let osmError = false, osmMsg = '';
     try {
       const osm = await overpassNear(lat, lng, radius);
       osm.forEach((p) => {
@@ -262,10 +270,10 @@ app.get('/api/places/near', async (req, res) => {
           lat: p.lat, lng: p.lng, source: 'osm', reviewCount: 0, avgStars: 0, score: 0, grade: null, distanceM: Math.round(d),
         });
       });
-    } catch (e) { osmError = true; console.warn('[overpass]', e.message); }
+    } catch (e) { osmError = true; osmMsg = e.message; console.warn('[overpass]', e.message); }
 
     const list = Array.from(byKey.values()).sort((a, b) => a.distanceM - b.distanceM).slice(0, 160);
-    res.json({ places: list, osmError });
+    res.json({ places: list, osmError, osmMsg });
   } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
 });
 
