@@ -92,6 +92,10 @@ section{padding:74px 0}
 .maphead .loc{font-size:13px;color:var(--muted);font-family:var(--f-mono)}
 .maphead .loc b{color:var(--ink)}
 .maphead .mapbtns{display:flex;gap:8px;flex-wrap:wrap}
+.cityrow{display:flex;gap:8px;flex-wrap:wrap;padding:12px 18px 4px}
+.citychip{font-family:var(--f-mono);font-size:12px;padding:6px 12px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;transition:.13s}
+.citychip:hover{border-color:var(--blue);color:var(--ink)}
+.citychip.active{background:var(--navy);border-color:var(--navy);color:#fff}
 .mapsearch{position:relative;padding:12px 18px;border-bottom:1px solid var(--line)}
 .mapsearch input[type=text]{width:100%}
 .search-results{position:absolute;left:18px;right:18px;top:calc(100% - 4px);background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:1200;max-height:280px;overflow:auto}

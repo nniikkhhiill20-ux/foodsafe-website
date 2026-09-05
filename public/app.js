@@ -204,6 +204,27 @@
   searchResults.addEventListener('click', function (e) { var el = e.target.closest('[data-i]'); if (el) chooseResult(lastResults[+el.getAttribute('data-i')]); });
   document.addEventListener('click', function (e) { if (!e.target.closest('.mapsearch')) searchResults.hidden = true; });
 
+  // ---------------- quick-jump cities ----------------
+  var CITIES = [
+    ['Mumbai', 19.0760, 72.8777], ['Delhi', 28.6139, 77.2090], ['Bengaluru', 12.9716, 77.5946],
+    ['Hyderabad', 17.3850, 78.4867], ['Chennai', 13.0827, 80.2707], ['Kolkata', 22.5726, 88.3639],
+    ['Pune', 18.5204, 73.8567], ['Ahmedabad', 23.0225, 72.5714], ['Jaipur', 26.9124, 75.7873]
+  ];
+  var cityRow = document.getElementById('cityRow');
+  if (cityRow) {
+    CITIES.forEach(function (c) {
+      var b = document.createElement('button');
+      b.className = 'citychip'; b.type = 'button'; b.textContent = c[0];
+      b.onclick = function () {
+        Array.prototype.forEach.call(cityRow.children, function (el) { el.classList.toggle('active', el === b); });
+        searchLayer.clearLayers();
+        map.setView([c[1], c[2]], 14);
+        loadForView(false);
+      };
+      cityRow.appendChild(b);
+    });
+  }
+
   // ---------------- add a kitchen ----------------
   var addBtn = document.getElementById('addBtn'), addBanner = document.getElementById('addBanner');
   var addModal = document.getElementById('addModal'), pickedLatLng = null;
