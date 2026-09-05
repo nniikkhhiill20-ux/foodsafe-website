@@ -59,7 +59,7 @@ app.get('/api/restaurants/near', async (req, res) => {
     const sql = `
       SELECT * FROM (
         SELECT r.id, r.name, r.cuisine, r.address, r.city, r.lat, r.lng, r.source,
-          COALESCE(a.cnt,0) AS review_count, COALESCE(a.avg,0)::float AS avg_stars,
+          COALESCE(a.cnt,0)::int AS review_count, COALESCE(a.avg,0)::float AS avg_stars,
           (6371000 * acos(greatest(-1, least(1,
             cos(radians($1))*cos(radians(r.lat))*cos(radians(r.lng)-radians($2))
             + sin(radians($1))*sin(radians(r.lat)))))) AS distance_m
@@ -191,7 +191,7 @@ app.get('/api/admin/map', adminAuth, async (_req, res) => {
   try {
     const { rows } = await query(`
       SELECT r.id, r.name, r.city, r.lat, r.lng, r.source,
-        COALESCE(a.cnt,0) AS review_count, COALESCE(a.avg,0)::float AS avg_stars
+        COALESCE(a.cnt,0)::int AS review_count, COALESCE(a.avg,0)::float AS avg_stars
       FROM restaurants r
       LEFT JOIN (SELECT restaurant_id, COUNT(*) cnt, AVG(stars) avg FROM reviews WHERE status='live' GROUP BY restaurant_id) a ON a.restaurant_id=r.id
       WHERE r.status='live' ORDER BY review_count DESC;`);

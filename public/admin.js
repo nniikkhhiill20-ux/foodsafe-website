@@ -19,7 +19,7 @@
 
     var outlets = data.outlets || [], cities = data.cities || [];
     var totReviews = 0, starSum = 0;
-    outlets.forEach(function (o) { totReviews += o.reviewCount; starSum += o.avgStars * o.reviewCount; });
+    outlets.forEach(function (o) { o.reviewCount = Number(o.reviewCount) || 0; o.avgStars = Number(o.avgStars) || 0; totReviews += o.reviewCount; starSum += o.avgStars * o.reviewCount; });
     document.getElementById('tReviews').textContent = nfmt(totReviews);
     document.getElementById('tOutlets').textContent = nfmt(outlets.length);
     document.getElementById('tScore').textContent = totReviews ? Math.round((starSum / totReviews) * 20) : 0;
