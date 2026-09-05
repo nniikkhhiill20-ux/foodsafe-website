@@ -109,6 +109,7 @@
       '<div class="rev-body">' +
         (flagsHtml ? '<p class="rlabel">What diners report</p><div class="flags">' + flagsHtml + '</div>' : '') +
         (cmts ? '<p class="rlabel">Recent reviews</p><div class="comments">' + cmts + '</div>' : (hasR ? '' : '<p style="color:var(--muted);font-size:14px;margin:0 0 6px">No reviews yet. Be the first to grade this kitchen.</p>')) +
+        '<a href="#" class="report-link" id="reportLink">⚠ Report unsafe food to the authorities →</a>' +
         '<div class="rev-form">' +
           '<p class="rlabel">Add your rating</p>' +
           '<div class="starpick" id="starpick">' + [1, 2, 3, 4, 5].map(function (i) { return '<button type="button" data-s="' + i + '" aria-label="' + i + ' star">★</button>'; }).join('') + '</div>' +
@@ -132,7 +133,28 @@
     fp.addEventListener('click', function (e) { var s = e.target.closest('[data-f]'); if (s) toggleFlag(s); });
     fp.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { var s = e.target.closest('[data-f]'); if (s) { e.preventDefault(); toggleFlag(s); } } });
     document.getElementById('submitRev').onclick = function () { submitReview(o); };
+    var rl = document.getElementById('reportLink');
+    if (rl) rl.onclick = function (e) { e.preventDefault(); openReport(o); };
   }
+
+  // ---------------- report to authorities (official channels) ----------------
+  var MH_CITIES = ['mumbai', 'pune', 'nagpur', 'nashik', 'nashik road', 'thane', 'navi mumbai', 'aurangabad', 'chhatrapati sambhajinagar', 'sambhajinagar', 'solapur', 'kolhapur', 'amravati', 'nanded', 'sangli', 'jalgaon', 'akola', 'latur', 'dhule', 'ahmednagar', 'chandrapur'];
+  function officialLinks(city) {
+    var isMH = city && MH_CITIES.indexOf(String(city).trim().toLowerCase()) >= 0;
+    var mh = { name: 'Maharashtra FDA complaint portal', desc: 'The AI complaint portal launched by FDA Commissioner Tukaram Mundhe — report food adulteration and unsafe food, and track your complaint.', url: 'https://complaints.mahafda.in' };
+    var fssai = { name: 'FSSAI Food Safety Connect', desc: "India's national food-safety regulator. Report unhygienic kitchens, adulteration, restaurants and delivery apps — with photos.", url: 'https://foscos.fssai.gov.in/consumergrievance/' };
+    return isMH ? [mh, fssai] : [fssai, mh];
+  }
+  var reportModal = document.getElementById('reportModal');
+  function openReport(o) {
+    var links = officialLinks(o.city);
+    document.getElementById('reportLinks').innerHTML = links.map(function (l) {
+      return '<a class="reportopt" href="' + l.url + '" target="_blank" rel="noopener"><b>' + esc(l.name) + ' ↗</b><small>' + esc(l.desc) + '</small></a>';
+    }).join('');
+    reportModal.classList.add('on');
+  }
+  document.getElementById('reportClose').onclick = function () { reportModal.classList.remove('on'); };
+  reportModal.addEventListener('click', function (e) { if (e.target === reportModal) reportModal.classList.remove('on'); });
 
   async function submitReview(o) {
     if (!pickStars) { document.getElementById('formErr').textContent = 'Pick a star rating first.'; return; }
