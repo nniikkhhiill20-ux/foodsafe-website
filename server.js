@@ -88,7 +88,7 @@ app.get('/api/restaurants/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (!isFinite(id)) return res.status(400).json({ error: 'bad id' });
   try {
-    const r = await query('SELECT id,name,cuisine,address,city,lat,lng,source FROM restaurants WHERE id=$1 AND status=$2', [id, 'live']);
+    const r = await query('SELECT id,name,cuisine,address,city,lat,lng,source,fssai FROM restaurants WHERE id=$1 AND status=$2', [id, 'live']);
     if (!r.rows.length) return res.status(404).json({ error: 'not found' });
     const agg = await query("SELECT COUNT(*)::int cnt, COALESCE(AVG(stars),0)::float avg FROM reviews WHERE restaurant_id=$1 AND status='live'", [id]);
     const recent = await query("SELECT stars, comment, flags, author, created_at FROM reviews WHERE restaurant_id=$1 AND status='live' ORDER BY created_at DESC LIMIT 8", [id]);
@@ -118,6 +118,10 @@ app.post('/api/restaurants/:id/reviews', writeLimiter, async (req, res) => {
     if (!exists.rows.length) return res.status(404).json({ error: 'not found' });
     await query('INSERT INTO reviews (restaurant_id, stars, comment, flags, author, ip_hash) VALUES ($1,$2,$3,$4,$5,$6)',
       [id, stars, comment, flags, author, clientHash(req)]);
+    const fssai = String(req.body.fssai || '').replace(/\s/g, '');
+    if (/^\d{14}$/.test(fssai)) {
+      await query("UPDATE restaurants SET fssai=$1 WHERE id=$2 AND (fssai IS NULL OR fssai='')", [fssai, id]);
+    }
     const agg = await query("SELECT COUNT(*)::int cnt, COALESCE(AVG(stars),0)::float avg FROM reviews WHERE restaurant_id=$1 AND status='live'", [id]);
     const avg = Number(agg.rows[0].avg) || 0;
     res.json({ ok: true, reviewCount: agg.rows[0].cnt, avgStars: avg, score: Math.round(avg * 20), grade: GRADE(avg) });
@@ -176,7 +180,6 @@ app.get('/api/stats', async (_req, res) => {
 // API (open data, ODbL). Fetched server-side (no CORS/CSP issues), cached
 // briefly, and merged with our own reviewed outlets.
 const placeCache = new Map(); // key -> { t, v }
-let lastOverpassError = '';
 const OVERPASS = [
   'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
@@ -222,7 +225,6 @@ async function overpassNear(lat, lng, radius) {
       return places;
     } catch (e) { lastErr = new Error(url.split('/')[2] + ': ' + e.message); }
   }
-  lastOverpassError = (lastErr && lastErr.message) || 'overpass unavailable';
   throw lastErr || new Error('overpass unavailable');
 }
 
@@ -258,7 +260,7 @@ app.get('/api/places/near', async (req, res) => {
       byKey.set(r.osm_id ? 'o:' + r.osm_id : 'd:' + r.id, item);
     });
 
-    let osmError = false, osmMsg = '';
+    let osmError = false;
     try {
       const osm = await overpassNear(lat, lng, radius);
       osm.forEach((p) => {
@@ -270,10 +272,10 @@ app.get('/api/places/near', async (req, res) => {
           lat: p.lat, lng: p.lng, source: 'osm', reviewCount: 0, avgStars: 0, score: 0, grade: null, distanceM: Math.round(d),
         });
       });
-    } catch (e) { osmError = true; osmMsg = e.message; console.warn('[overpass]', e.message); }
+    } catch (e) { osmError = true; console.warn('[overpass]', e.message); }
 
     const list = Array.from(byKey.values()).sort((a, b) => a.distanceM - b.distanceM).slice(0, 160);
-    res.json({ places: list, osmError, osmMsg });
+    res.json({ places: list, osmError });
   } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
 });
 
@@ -376,6 +378,14 @@ app.get('/api/admin/map', adminAuth, async (_req, res) => {
     }
     const cities = Object.values(cityMap).map((c) => ({ city: c.city, outlets: c.outlets, reviews: c.reviews, avgScore: c.reviews ? Math.round((c.starSum / c.reviews) * 20) : 0 })).sort((a, b) => b.reviews - a.reviews);
     res.json({ outlets, cities });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
+});
+
+// Delete the fictional sample data (source='seed') and its reviews.
+app.post('/api/admin/clear-seed', adminAuth, async (_req, res) => {
+  try {
+    const r = await query("DELETE FROM restaurants WHERE source='seed'");
+    res.json({ ok: true, deleted: r.rowCount });
   } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
 });
 

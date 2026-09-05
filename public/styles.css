@@ -137,6 +137,13 @@ section{padding:74px 0}
 .rev-top .stars b{font-family:var(--f-mono);font-size:12px;color:var(--on-navy);margin-left:6px;letter-spacing:0}
 .rev-body{padding:18px 20px}
 .rlabel{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.fssai{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px;padding:9px 12px;border-radius:10px;margin-bottom:16px;line-height:1.35}
+.fssai.on{background:rgba(30,158,90,.1);border:1px solid rgba(30,158,90,.35);color:var(--ink)}
+.fssai.off{background:var(--surface-2);border:1px solid var(--line);color:var(--muted)}
+.fssai b{color:var(--green)}
+.fssai.off b{color:var(--muted)}
+.fssai a{color:var(--blue);text-decoration:none;font-weight:600;white-space:nowrap}
+.fssai a:hover{text-decoration:underline}
 .flags{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px}
 .flag{font-family:var(--f-mono);font-size:11.5px;padding:5px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:var(--surface-2)}
 .flag b{color:var(--ink)}

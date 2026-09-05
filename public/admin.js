@@ -40,5 +40,19 @@
     }).join('');
     document.getElementById('cityRows').innerHTML = rows || '<div class="trow"><span>No data yet</span></div>';
   }
+  var clearBtn = document.getElementById('clearSeedBtn');
+  if (clearBtn) clearBtn.onclick = async function () {
+    if (!confirm('Delete all fictional sample (seed) restaurants and their reviews? Real community/OSM data is kept. This cannot be undone.')) return;
+    clearBtn.disabled = true; clearBtn.textContent = 'Clearing…';
+    try {
+      var r = await fetch('/api/admin/clear-seed', { method: 'POST' });
+      var d = await r.json();
+      if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+      document.getElementById('clearSeedMsg').textContent = 'Removed ' + (d.deleted || 0) + ' sample outlets. Set SEED_ON_START=false in Railway so they do not return.';
+      load();
+    } catch (e) { document.getElementById('clearSeedMsg').textContent = 'Failed: ' + e.message; }
+    clearBtn.disabled = false; clearBtn.textContent = 'Clear sample (seed) data';
+  };
+
   load();
 })();

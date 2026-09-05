@@ -99,6 +99,9 @@
       return '<div class="cmt"><div class="meta"><span class="st">' + starStr(r.stars).slice(0, r.stars) + '</span> ' + esc(r.author) + ' · ' + relTime(r.createdAt) + '</div>' +
         (r.comment ? '<p>' + esc(r.comment) + '</p>' : '') + '</div>';
     }).join('');
+    var fssaiHtml = o.fssai
+      ? '<div class="fssai on"><span>FSSAI licence <b>on record</b> · <span class="mono">' + esc(o.fssai) + '</span></span> <a href="https://foscos.fssai.gov.in/" target="_blank" rel="noopener">verify ↗</a></div>'
+      : '<div class="fssai off"><span>FSSAI licence not recorded yet</span> <a href="https://foscos.fssai.gov.in/" target="_blank" rel="noopener">look up ↗</a></div>';
     revCard.innerHTML =
       '<div class="rev-top">' +
         '<div class="grade-stamp ' + (hasR ? '' : 'empty') + '" style="' + (hasR ? 'background:' + col : '') + '"><span class="g">' + (o.grade || '?') + '</span><span class="s">GRADE</span></div>' +
@@ -107,6 +110,7 @@
           '<div class="stars">' + starStr(o.avgStars) + '<b>' + (hasR ? o.avgStars.toFixed(1) + ' · ' + nfmt(o.reviewCount) + ' review' + (o.reviewCount === 1 ? '' : 's') : 'no reviews yet') + '</b></div>' +
         '</div></div>' +
       '<div class="rev-body">' +
+        fssaiHtml +
         (flagsHtml ? '<p class="rlabel">What diners report</p><div class="flags">' + flagsHtml + '</div>' : '') +
         (cmts ? '<p class="rlabel">Recent reviews</p><div class="comments">' + cmts + '</div>' : (hasR ? '' : '<p style="color:var(--muted);font-size:14px;margin:0 0 6px">No reviews yet. Be the first to grade this kitchen.</p>')) +
         '<a href="#" class="report-link" id="reportLink">⚠ Report unsafe food to the authorities →</a>' +
@@ -115,6 +119,7 @@
           '<div class="starpick" id="starpick">' + [1, 2, 3, 4, 5].map(function (i) { return '<button type="button" data-s="' + i + '" aria-label="' + i + ' star">★</button>'; }).join('') + '</div>' +
           '<div class="flagpick" id="flagpick">' + FLAGSET.map(function (f) { return '<span class="flag" role="button" tabindex="0" data-f="' + esc(f) + '">' + esc(f) + '</span>'; }).join('') + '</div>' +
           '<input type="text" id="authorBox" maxlength="40" placeholder="Your name (optional)" style="margin-bottom:10px">' +
+          (o.fssai ? '' : '<input type="text" id="fssaiBox" maxlength="20" placeholder="FSSAI licence no. — 14 digits (optional)" style="margin-bottom:10px">') +
           '<textarea id="cmtBox" maxlength="600" placeholder="What did you notice about hygiene, freshness, packaging? Be honest and specific."></textarea>' +
           '<div class="formerr" id="formErr"></div>' +
           '<div class="submitrow"><button class="btn btn-stamp" id="submitRev">Post review</button>' +
@@ -158,11 +163,15 @@
 
   async function submitReview(o) {
     if (!pickStars) { document.getElementById('formErr').textContent = 'Pick a star rating first.'; return; }
+    var fssaiEl = document.getElementById('fssaiBox');
+    var fssaiVal = fssaiEl ? fssaiEl.value.replace(/\s/g, '') : '';
+    if (fssaiVal && !/^\d{14}$/.test(fssaiVal)) { document.getElementById('formErr').textContent = 'FSSAI number must be 14 digits (or leave it blank).'; return; }
     var body = {
       stars: pickStars,
       comment: document.getElementById('cmtBox').value.trim(),
       author: document.getElementById('authorBox').value.trim(),
-      flags: Object.keys(pickFlags).filter(function (f) { return pickFlags[f]; })
+      flags: Object.keys(pickFlags).filter(function (f) { return pickFlags[f]; }),
+      fssai: fssaiVal
     };
     var btn = document.getElementById('submitRev'); btn.textContent = 'Posting…'; btn.disabled = true;
     try {
