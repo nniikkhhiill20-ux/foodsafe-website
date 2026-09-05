@@ -298,24 +298,42 @@ app.post('/api/places/ensure', writeLimiter, async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
 });
 
-// Geocode search — find a restaurant name, area, or landmark (OSM Nominatim).
+// Geocode search — find a restaurant name, area, or landmark (OSM Nominatim),
+// biased to the current map area so results are local, not all-India.
 const geoCache = new Map();
+async function nominatim(q, viewbox) {
+  const base = 'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&countrycodes=in&q=' + encodeURIComponent(q) + viewbox;
+  const ctrl = new AbortController();
+  const to = setTimeout(() => ctrl.abort(), 8000);
+  const r = await fetch(base, { headers: { 'User-Agent': 'FoodSafePro/1.0 (citizens food-safety project)', 'Accept': 'application/json', 'Accept-Language': 'en' }, signal: ctrl.signal });
+  clearTimeout(to);
+  if (!r.ok) throw new Error('geocode ' + r.status);
+  return await r.json();
+}
+function mapNom(j) {
+  return (j || []).map((x) => ({
+    label: x.display_name, name: x.name || x.display_name.split(',')[0],
+    lat: parseFloat(x.lat), lng: parseFloat(x.lon),
+    osmType: x.osm_type, osmId: x.osm_id, type: x.type,
+    city: (x.address && (x.address.city || x.address.town || x.address.suburb || x.address.village || x.address.state_district)) || '',
+  })).filter((x) => isFinite(x.lat) && isFinite(x.lng)).slice(0, 6);
+}
 app.get('/api/geocode', async (req, res) => {
   const q = String(req.query.q || '').trim().slice(0, 120);
   if (q.length < 2) return res.json({ results: [] });
-  const key = q.toLowerCase();
+  const lat = parseFloat(req.query.lat), lng = parseFloat(req.query.lng);
+  const hasView = isFinite(lat) && isFinite(lng);
+  const key = q.toLowerCase() + (hasView ? '@' + lat.toFixed(2) + ',' + lng.toFixed(2) : '');
   const hit = geoCache.get(key);
   if (hit && Date.now() - hit.t < 10 * 60 * 1000) return res.json({ results: hit.v });
   try {
-    const u = 'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=0&limit=6&countrycodes=in&q=' + encodeURIComponent(q);
-    const ctrl = new AbortController();
-    const to = setTimeout(() => ctrl.abort(), 8000);
-    const r = await fetch(u, { headers: { 'User-Agent': 'FoodSafePro/1.0 (citizens food-safety project)', 'Accept': 'application/json', 'Accept-Language': 'en' }, signal: ctrl.signal });
-    clearTimeout(to);
-    if (!r.ok) throw new Error('geocode ' + r.status);
-    const j = await r.json();
-    const results = (j || []).map((x) => ({ label: x.display_name, lat: parseFloat(x.lat), lng: parseFloat(x.lon), type: x.type }))
-      .filter((x) => isFinite(x.lat) && isFinite(x.lng)).slice(0, 6);
+    let results = [];
+    if (hasView) {
+      const d = 0.25;
+      const vb = '&viewbox=' + (lng - d) + ',' + (lat + d) + ',' + (lng + d) + ',' + (lat - d) + '&bounded=1';
+      results = mapNom(await nominatim(q, vb));
+    }
+    if (!results.length) results = mapNom(await nominatim(q, '')); // fall back to all-India
     geoCache.set(key, { t: Date.now(), v: results });
     res.json({ results });
   } catch (e) { console.warn('[geocode]', e.message); res.json({ results: [], error: true }); }

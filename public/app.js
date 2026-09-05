@@ -209,20 +209,27 @@
     }).join('');
     searchResults.hidden = false;
   }
+  var FOOD_TYPES = ['restaurant', 'cafe', 'fast_food', 'food_court', 'ice_cream', 'bar', 'pub', 'bakery', 'biergarten', 'deli'];
   function chooseResult(r) {
     if (!r) return;
     searchResults.hidden = true;
-    searchBox.value = r.label.split(', ')[0];
-    map.setView([r.lat, r.lng], 16);
-    dropBeacon(r.lat, r.lng, r.label.split(', ')[0]);
+    var title = r.name || r.label.split(', ')[0];
+    searchBox.value = title;
+    var isFood = r.osmType && r.osmId && FOOD_TYPES.indexOf(r.type) >= 0;
+    map.setView([r.lat, r.lng], isFood ? 17 : 15);
+    dropBeacon(r.lat, r.lng, title);
     loadForView(false);
+    if (isFood) {
+      selectPlace({ dbId: null, osmId: r.osmType + '/' + r.osmId, name: title, cuisine: (r.type || '').replace(/_/g, ' '), city: r.city || '', lat: r.lat, lng: r.lng, source: 'osm' });
+      document.getElementById('revCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
   }
   searchBox.addEventListener('input', function () {
     var q = searchBox.value.trim();
     clearTimeout(searchT);
     if (q.length < 2) { searchResults.hidden = true; return; }
     searchT = setTimeout(async function () {
-      try { var d = await api('/api/geocode?q=' + encodeURIComponent(q)); renderSearchResults(d.results || []); }
+      try { var c = map.getCenter(); var d = await api('/api/geocode?q=' + encodeURIComponent(q) + '&lat=' + c.lat + '&lng=' + c.lng); renderSearchResults(d.results || []); }
       catch (e) { /* silent */ }
     }, 350);
   });
