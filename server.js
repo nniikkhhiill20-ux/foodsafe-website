@@ -148,11 +148,15 @@ app.post('/api/restaurants', addLimiter, async (req, res) => {
 // Pledge — deduped by a client token, returns global total.
 app.post('/api/pledge', writeLimiter, async (req, res) => {
   let token = String(req.body.token || '').trim().slice(0, 64);
+  const name = String(req.body.name || '').trim().replace(/\s+/g, ' ').slice(0, 60);
   if (!/^[A-Za-z0-9_-]{6,64}$/.test(token)) return res.status(400).json({ error: 'bad token' });
+  if (name.length < 2) return res.status(400).json({ error: 'Please enter your name.' });
   try {
-    await query('INSERT INTO pledges (token) VALUES ($1) ON CONFLICT (token) DO NOTHING', [token]);
+    const ins = await query(
+      'INSERT INTO pledges (token, name) VALUES ($1,$2) ON CONFLICT (token) DO UPDATE SET name = EXCLUDED.name RETURNING id, name',
+      [token, name]);
     const c = await query('SELECT COUNT(*)::int AS c FROM pledges');
-    res.json({ ok: true, count: c.rows[0].c });
+    res.json({ ok: true, count: c.rows[0].c, number: ins.rows[0].id, name: ins.rows[0].name });
   } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
 });
 app.get('/api/pledge', async (_req, res) => {

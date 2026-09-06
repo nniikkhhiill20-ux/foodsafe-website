@@ -124,7 +124,11 @@
       <div class="pledge-count" id="pledgeCount">—</div>
       <div class="pledge-count-lbl">citizens have pledged</div>
       <div id="pledgeState" style="margin-top:20px">
-        <button class="btn btn-gold btn-lg" id="pledgeBtn" style="font-size:18px;padding:16px 34px">I take the pledge</button>
+        <div class="pledge-form">
+          <input type="text" id="pledgeName" maxlength="60" autocomplete="name" placeholder="Your name">
+          <button class="btn btn-gold btn-lg" id="pledgeBtn" style="font-size:18px;padding:15px 30px">I take the pledge</button>
+        </div>
+        <div class="formerr" id="pledgeErr" style="color:#ffd27a;justify-content:center;text-align:center"></div>
       </div>
       <div class="goal">
         Goal: <b style="color:var(--gold)">1,00,000</b> citizens demanding visible grades
@@ -223,6 +227,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

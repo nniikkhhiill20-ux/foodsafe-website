@@ -41,8 +41,10 @@ CREATE INDEX IF NOT EXISTS idx_rev_created ON reviews (created_at);
 CREATE TABLE IF NOT EXISTS pledges (
   id          SERIAL PRIMARY KEY,
   token       TEXT UNIQUE NOT NULL,
+  name        TEXT NOT NULL DEFAULT '',
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE pledges ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT '';
 `;
 
 async function ensureSchema() {

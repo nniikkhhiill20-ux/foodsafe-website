@@ -175,6 +175,17 @@ input[type=text]:focus,textarea:focus{outline:none;border-color:var(--blue)}
 .pledge h2 .hl{color:var(--gold)}
 .pledge p{color:var(--on-navy-muted);font-size:18px;margin:18px auto 28px;max-width:52ch}
 .pledge-box{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:30px 26px}
+.pledge-form{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.pledge-form input[type=text]{max-width:250px;text-align:center;background:#fff;color:#15242C}
+.certificate{background:var(--navy);border:3px solid var(--gold);border-radius:16px;padding:32px 28px;max-width:540px;margin:0 auto;position:relative;color:var(--on-navy);text-align:center;box-shadow:inset 0 0 0 1px rgba(232,162,0,.4)}
+.certificate .cseal{width:60px;height:60px;margin:0 auto 10px;display:block}
+.certificate .ckicker{font-family:var(--f-mono);font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:var(--gold)}
+.certificate .cintro{font-size:13px;color:var(--on-navy-muted);margin-top:12px}
+.certificate .cname{font-family:var(--f-display);font-size:clamp(28px,6vw,44px);text-transform:uppercase;color:#fff;line-height:1;margin:10px 0 12px;word-break:break-word}
+.certificate .cbody{color:var(--on-navy-muted);font-size:14.5px;max-width:42ch;margin:0 auto;line-height:1.5}
+.certificate .cmeta{font-family:var(--f-mono);font-size:12px;color:var(--gold);margin-top:16px;letter-spacing:.06em}
+.certificate .cbrand{margin-top:16px;font-family:var(--f-display);text-transform:uppercase;font-size:20px;color:#fff;letter-spacing:.02em}
+.certificate .ctag{font-family:var(--f-mono);font-size:10px;color:var(--on-navy-muted);margin-top:3px;letter-spacing:.14em}
 .pledge-count{font-family:var(--f-display);font-size:clamp(48px,9vw,88px);line-height:1;color:var(--gold)}
 .pledge-count-lbl{font-family:var(--f-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--on-navy-muted);margin-top:6px}
 #pledgeState .done{font-family:var(--f-display);font-size:26px;color:var(--gold);text-transform:uppercase;letter-spacing:.02em;margin-top:16px}

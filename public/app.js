@@ -300,30 +300,62 @@
     if (!t) { t = (crypto.randomUUID ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(36).slice(2))).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64); }
     return t;
   }
-  function showPledged() {
-    var msg = encodeURIComponent('I just took the FoodSafe Pro pledge: I’ll check the grade before I order and rate the kitchens I eat from. Join the movement for public food safety. #GradeBeforeYouEat');
+  var NKEY = 'foodsafe_pledge_name', NUMKEY = 'foodsafe_pledge_no', DKEY = 'foodsafe_pledge_date';
+  function updateGoal(count) { document.getElementById('goalFill').style.width = Math.max(2, Math.min(100, (count / 100000) * 100)).toFixed(1) + '%'; }
+  function certNo(n) { return n ? 'No. ' + String(n).padStart(5, '0') : ''; }
+
+  function showCertificate(name, number, dateStr) {
+    var no = certNo(number);
+    var date = dateStr || new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+    var msg = encodeURIComponent('I just took the FoodSafe Pro pledge' + (no ? ' (' + no + ')' : '') + ' — I’ll check the grade before I order and rate the kitchens I eat from. Join the movement for public food safety. #GradeBeforeYouEat');
     var url = encodeURIComponent(location.href);
+    var seal = '<svg class="cseal" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46" fill="none" stroke="#E8A200" stroke-width="4"/><circle cx="50" cy="50" r="34" fill="none" stroke="#E8A200" stroke-width="2" stroke-dasharray="3 5"/><path d="M34 52l11 11 22-26" fill="none" stroke="#E8A200" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     document.getElementById('pledgeState').innerHTML =
-      '<div class="done">You’re in. ✓</div>' +
-      '<div class="donenum">Now send it to 3 people who eat out — that’s how movements move.</div>' +
-      '<div class="share-row">' +
-        '<a class="btn btn-gold" target="_blank" rel="noopener" href="https://wa.me/?text=' + msg + '%20' + url + '">Share on WhatsApp</a>' +
+      '<div class="certificate" id="certCard">' + seal +
+        '<div class="ckicker">Certificate of Pledge</div>' +
+        '<div class="cintro">This certifies that</div>' +
+        '<div class="cname">' + esc(name) + '</div>' +
+        '<div class="cbody">has taken the FoodSafe Pro pledge — to check the grade before they eat, rate the kitchens they visit, and stand for public, honest food safety.</div>' +
+        '<div class="cmeta">Pledge ' + no + ' &nbsp;·&nbsp; ' + esc(date) + '</div>' +
+        '<div class="cbrand">FoodSafe Pro</div>' +
+        '<div class="ctag">#GradeBeforeYouEat</div>' +
+      '</div>' +
+      '<div class="share-row" style="margin-top:16px">' +
+        '<button class="btn btn-gold" id="dlCert">Download certificate</button>' +
+        '<a class="btn btn-ghost" style="color:var(--on-navy);border-color:rgba(255,255,255,.5)" target="_blank" rel="noopener" href="https://wa.me/?text=' + msg + '%20' + url + '">Share on WhatsApp</a>' +
         '<a class="btn btn-ghost" style="color:var(--on-navy);border-color:rgba(255,255,255,.5)" target="_blank" rel="noopener" href="https://twitter.com/intent/tweet?text=' + msg + '&url=' + url + '">Share on X</a>' +
-        '<button class="btn btn-ghost" style="color:var(--on-navy);border-color:rgba(255,255,255,.5)" id="copyLink">Copy link</button>' +
-      '</div>';
-    var cl = document.getElementById('copyLink');
-    if (cl) cl.onclick = function () { if (navigator.clipboard) navigator.clipboard.writeText(location.href).then(function () { say('Link copied.'); }, function () { say('Copy failed.'); }); };
+      '</div>' +
+      '<div class="donenum">You’re pledge ' + no + '. Send your certificate to 3 friends — that’s how movements move.</div>';
+    var dl = document.getElementById('dlCert');
+    if (dl) dl.onclick = function () { downloadCert(name); };
   }
+
+  function downloadCert(name) {
+    if (!window.html2canvas) { say('Preparing certificate… try again in a moment.'); return; }
+    say('Generating your certificate…');
+    window.html2canvas(document.getElementById('certCard'), { backgroundColor: '#0F212C', scale: 2, useCORS: true }).then(function (canvas) {
+      var a = document.createElement('a');
+      a.download = 'FoodSafePro-Pledge-' + String(name || 'certificate').replace(/[^A-Za-z0-9]+/g, '-') + '.png';
+      a.href = canvas.toDataURL('image/png'); document.body.appendChild(a); a.click(); a.remove();
+    }).catch(function () { say('Could not generate the image.'); });
+  }
+
   document.getElementById('pledgeBtn').onclick = async function () {
+    var nameEl = document.getElementById('pledgeName');
+    var name = (nameEl.value || '').trim().replace(/\s+/g, ' ');
+    var errEl = document.getElementById('pledgeErr');
+    if (name.length < 2) { errEl.textContent = 'Please enter your name to pledge.'; nameEl.focus(); return; }
+    errEl.textContent = '';
     var t = pledgeToken();
     try {
-      var r = await api('/api/pledge', { method: 'POST', body: JSON.stringify({ token: t }) });
-      localStorage.setItem(PKEY, t);
+      var r = await api('/api/pledge', { method: 'POST', body: JSON.stringify({ token: t, name: name }) });
+      var date = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+      localStorage.setItem(PKEY, t); localStorage.setItem(NKEY, r.name || name);
+      localStorage.setItem(NUMKEY, String(r.number || '')); localStorage.setItem(DKEY, date);
       document.getElementById('pledgeCount').textContent = nfmt(r.count); updateGoal(r.count);
-      showPledged(); say('Pledge taken — thank you.');
-    } catch (e) { say('Could not record pledge: ' + e.message); }
+      showCertificate(r.name || name, r.number, date); say('Pledge taken — thank you.');
+    } catch (e) { document.getElementById('pledgeErr').textContent = e.message; }
   };
-  function updateGoal(count) { document.getElementById('goalFill').style.width = Math.max(2, Math.min(100, (count / 100000) * 100)).toFixed(1) + '%'; }
 
   // ---------------- stats ----------------
   async function loadStats() {
@@ -339,7 +371,7 @@
   }
 
   // ---------------- init ----------------
-  if (localStorage.getItem(PKEY)) showPledged();
+  if (localStorage.getItem(PKEY) && localStorage.getItem(NKEY)) showCertificate(localStorage.getItem(NKEY), localStorage.getItem(NUMKEY), localStorage.getItem(DKEY));
   setTimeout(function () { map.invalidateSize(); loadForView(true); }, 100);
   loadStats();
 })();
