@@ -13,6 +13,14 @@
   }
   function nfmt(n) { return Number(n).toLocaleString('en-IN'); }
   function keyOf(p) { return p.dbId ? 'd' + p.dbId : 'o' + p.osmId; }
+  function clientId() {
+    var c; try { c = localStorage.getItem('foodsafe_client_id'); } catch (e) {}
+    if (!c) {
+      c = (crypto.randomUUID ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(36).slice(2))).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
+      try { localStorage.setItem('foodsafe_client_id', c); } catch (e) {}
+    }
+    return c;
+  }
 
   var toastEl = document.getElementById('toast'), toastT;
   function say(m) { toastEl.textContent = m; toastEl.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(function () { toastEl.classList.remove('show'); }, 2600); }
@@ -170,7 +178,8 @@
       comment: document.getElementById('cmtBox').value.trim(),
       author: document.getElementById('authorBox').value.trim(),
       flags: Object.keys(pickFlags).filter(function (f) { return pickFlags[f]; }),
-      fssai: fssaiVal
+      fssai: fssaiVal,
+      clientId: clientId()
     };
     var btn = document.getElementById('submitRev'); btn.textContent = 'Posting…'; btn.disabled = true;
     try {
@@ -182,7 +191,7 @@
       await api('/api/restaurants/' + id + '/reviews', { method: 'POST', body: JSON.stringify(body) });
       say('Review posted — thank you for keeping it honest.');
       await selectPlace({ dbId: id, osmId: o.osmId, name: o.name, cuisine: o.cuisine, city: o.city, lat: o.lat, lng: o.lng, source: o.source });
-      loadForView(false); loadStats();
+      loadForView(false); loadStats(); loadMyReviews();
     } catch (e) { document.getElementById('formErr').textContent = e.message; btn.textContent = 'Post review'; btn.disabled = false; }
   }
 
@@ -370,8 +379,35 @@
     } catch (e) {}
   }
 
+  // ---------------- your review history ----------------
+  async function loadMyReviews() {
+    var sec = document.getElementById('mine'), wrap = document.getElementById('myList'), nav = document.getElementById('navMine');
+    try {
+      var d = await api('/api/my/reviews?clientId=' + encodeURIComponent(clientId()));
+      var list = d.reviews || [];
+      if (!list.length) { sec.hidden = true; if (nav) nav.hidden = true; return; }
+      wrap.innerHTML = list.map(function (r) {
+        return '<button class="myrow" type="button" data-rid="' + r.rid + '" data-lat="' + r.lat + '" data-lng="' + r.lng + '">' +
+          '<span class="mystars">' + starStr(r.stars).slice(0, r.stars) + '</span>' +
+          '<span class="myinfo"><b>' + esc(r.name) + '</b>' + (r.city ? ' <span class="mycity">' + esc(r.city) + '</span>' : '') +
+            (r.comment ? '<small>' + esc(r.comment) + '</small>' : '') + '</span>' +
+          '<span class="mydate">' + relTime(r.createdAt) + '</span></button>';
+      }).join('');
+      sec.hidden = false; if (nav) nav.hidden = false;
+      Array.prototype.forEach.call(wrap.querySelectorAll('.myrow'), function (el) {
+        el.onclick = function () {
+          var rid = +el.getAttribute('data-rid'), lat = +el.getAttribute('data-lat'), lng = +el.getAttribute('data-lng');
+          map.setView([lat, lng], 17); loadForView(false);
+          selectPlace({ dbId: rid, name: '', lat: lat, lng: lng });
+          document.getElementById('rate').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+      });
+    } catch (e) { sec.hidden = true; }
+  }
+
   // ---------------- init ----------------
   if (localStorage.getItem(PKEY) && localStorage.getItem(NKEY)) showCertificate(localStorage.getItem(NKEY), localStorage.getItem(NUMKEY), localStorage.getItem(DKEY));
   setTimeout(function () { map.invalidateSize(); loadForView(true); }, 100);
   loadStats();
+  loadMyReviews();
 })();

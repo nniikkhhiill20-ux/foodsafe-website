@@ -35,8 +35,10 @@ CREATE TABLE IF NOT EXISTS reviews (
   status        TEXT NOT NULL DEFAULT 'live',   -- live | hidden
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE reviews ADD COLUMN IF NOT EXISTS client_id TEXT NOT NULL DEFAULT '';
 CREATE INDEX IF NOT EXISTS idx_rev_rest ON reviews (restaurant_id);
 CREATE INDEX IF NOT EXISTS idx_rev_created ON reviews (created_at);
+CREATE INDEX IF NOT EXISTS idx_rev_client ON reviews (client_id);
 
 CREATE TABLE IF NOT EXISTS pledges (
   id          SERIAL PRIMARY KEY,

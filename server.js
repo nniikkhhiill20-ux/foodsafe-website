@@ -111,13 +111,15 @@ app.post('/api/restaurants/:id/reviews', writeLimiter, async (req, res) => {
   let comment = String(req.body.comment || '').trim().slice(0, 600);
   let author = String(req.body.author || 'Anonymous').trim().slice(0, 40) || 'Anonymous';
   let flags = Array.isArray(req.body.flags) ? req.body.flags.filter((f) => FLAGS.includes(f)).slice(0, 4) : [];
+  let clientId = String(req.body.clientId || '').trim().slice(0, 64);
+  if (!/^[A-Za-z0-9_-]{6,64}$/.test(clientId)) clientId = '';
   if (!isFinite(id)) return res.status(400).json({ error: 'bad id' });
   if (!(stars >= 1 && stars <= 5)) return res.status(400).json({ error: 'Pick a star rating between 1 and 5.' });
   try {
     const exists = await query('SELECT 1 FROM restaurants WHERE id=$1 AND status=$2', [id, 'live']);
     if (!exists.rows.length) return res.status(404).json({ error: 'not found' });
-    await query('INSERT INTO reviews (restaurant_id, stars, comment, flags, author, ip_hash) VALUES ($1,$2,$3,$4,$5,$6)',
-      [id, stars, comment, flags, author, clientHash(req)]);
+    await query('INSERT INTO reviews (restaurant_id, stars, comment, flags, author, ip_hash, client_id) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+      [id, stars, comment, flags, author, clientHash(req), clientId]);
     const fssai = String(req.body.fssai || '').replace(/\s/g, '');
     if (/^\d{14}$/.test(fssai)) {
       await query("UPDATE restaurants SET fssai=$1 WHERE id=$2 AND (fssai IS NULL OR fssai='')", [fssai, id]);
@@ -162,6 +164,26 @@ app.post('/api/pledge', writeLimiter, async (req, res) => {
 app.get('/api/pledge', async (_req, res) => {
   try { const c = await query('SELECT COUNT(*)::int AS c FROM pledges'); res.json({ count: c.rows[0].c }); }
   catch (e) { res.status(500).json({ error: 'server' }); }
+});
+
+// A visitor's own review history (identified by their browser client id).
+app.get('/api/my/reviews', async (req, res) => {
+  const cid = String(req.query.clientId || '').trim();
+  if (!/^[A-Za-z0-9_-]{6,64}$/.test(cid)) return res.json({ reviews: [] });
+  try {
+    const { rows } = await query(
+      `SELECT rv.id, rv.stars, rv.comment, rv.flags, rv.created_at,
+              r.id AS rid, r.name, r.city, r.lat, r.lng
+       FROM reviews rv JOIN restaurants r ON r.id = rv.restaurant_id
+       WHERE rv.client_id = $1 AND rv.status='live' AND r.status='live'
+       ORDER BY rv.created_at DESC LIMIT 100`, [cid]);
+    res.json({
+      reviews: rows.map((x) => ({
+        id: x.id, stars: x.stars, comment: x.comment, flags: x.flags, createdAt: x.created_at,
+        rid: x.rid, name: x.name, city: x.city, lat: x.lat, lng: x.lng,
+      })),
+    });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
 });
 
 // National stats (real, live).

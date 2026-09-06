@@ -168,6 +168,16 @@ input[type=text]:focus,textarea:focus{outline:none;border-color:var(--blue)}
 .submitrow{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}
 @media(max-width:860px){.rate-panel{grid-template-columns:1fr;gap:24px}}
 
+.mylist{display:grid;gap:10px}
+.myrow{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 18px;cursor:pointer;font-family:var(--f-body);color:var(--ink);transition:.13s}
+.myrow:hover{border-color:var(--blue);box-shadow:var(--shadow)}
+.myrow .mystars{color:var(--gold);font-size:15px;letter-spacing:1px;flex:none;min-width:70px}
+.myrow .myinfo{flex:1;min-width:0;font-size:14.5px;line-height:1.35}
+.myrow .myinfo b{font-weight:600}
+.myrow .mycity{color:var(--muted);font-size:13px}
+.myrow .myinfo small{display:block;color:var(--muted);font-size:13px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.myrow .mydate{flex:none;font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
+@media(max-width:600px){.myrow .mystars{min-width:56px;font-size:13px}}
 .pledge{background:var(--navy);color:var(--on-navy);text-align:center;position:relative;overflow:hidden}
 .pledge .sealbg{position:absolute;left:50%;top:50%;width:640px;opacity:.05;transform:translate(-50%,-50%);pointer-events:none}
 .pledge-in{position:relative;max-width:720px;margin:0 auto}
