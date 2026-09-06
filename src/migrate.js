@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS reviews (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE reviews ADD COLUMN IF NOT EXISTS client_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE reviews ADD COLUMN IF NOT EXISTS reports INT NOT NULL DEFAULT 0;
 CREATE INDEX IF NOT EXISTS idx_rev_rest ON reviews (restaurant_id);
 CREATE INDEX IF NOT EXISTS idx_rev_created ON reviews (created_at);
 CREATE INDEX IF NOT EXISTS idx_rev_client ON reviews (client_id);

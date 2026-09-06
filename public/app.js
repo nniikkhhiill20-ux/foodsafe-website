@@ -104,7 +104,8 @@
     var srcTag = o.source === 'osm' ? 'OpenStreetMap' : (o.source === 'community' ? 'community-added' : '');
     var flagsHtml = (o.flags || []).map(function (f) { return '<span class="flag">' + esc(f.flag) + ' <b>' + f.c + '</b></span>'; }).join('');
     var cmts = (o.reviews || []).map(function (r) {
-      return '<div class="cmt"><div class="meta"><span class="st">' + starStr(r.stars).slice(0, r.stars) + '</span> ' + esc(r.author) + ' · ' + relTime(r.createdAt) + '</div>' +
+      return '<div class="cmt"><div class="meta"><span class="st">' + starStr(r.stars).slice(0, r.stars) + '</span> ' + esc(r.author) + ' · ' + relTime(r.createdAt) +
+        (r.id ? ' · <a href="#" class="reportrev" data-rid="' + r.id + '">report</a>' : '') + '</div>' +
         (r.comment ? '<p>' + esc(r.comment) + '</p>' : '') + '</div>';
     }).join('');
     var fssaiHtml = o.fssai
@@ -147,6 +148,15 @@
     document.getElementById('submitRev').onclick = function () { submitReview(o); };
     var rl = document.getElementById('reportLink');
     if (rl) rl.onclick = function (e) { e.preventDefault(); openReport(o); };
+    Array.prototype.forEach.call(revCard.querySelectorAll('.reportrev'), function (el) {
+      el.onclick = function (e) { e.preventDefault(); reportReview(el.getAttribute('data-rid'), el); };
+    });
+  }
+
+  async function reportReview(rid, el) {
+    if (el) { el.textContent = 'reported'; el.classList.add('reported'); }
+    try { await api('/api/reviews/' + rid + '/report', { method: 'POST', body: '{}' }); say('Thanks — flagged for review.'); }
+    catch (e) { say('Could not report: ' + e.message); }
   }
 
   // ---------------- report to authorities (official channels) ----------------

@@ -91,7 +91,7 @@ app.get('/api/restaurants/:id', async (req, res) => {
     const r = await query('SELECT id,name,cuisine,address,city,lat,lng,source,fssai FROM restaurants WHERE id=$1 AND status=$2', [id, 'live']);
     if (!r.rows.length) return res.status(404).json({ error: 'not found' });
     const agg = await query("SELECT COUNT(*)::int cnt, COALESCE(AVG(stars),0)::float avg FROM reviews WHERE restaurant_id=$1 AND status='live'", [id]);
-    const recent = await query("SELECT stars, comment, flags, author, created_at FROM reviews WHERE restaurant_id=$1 AND status='live' ORDER BY created_at DESC LIMIT 8", [id]);
+    const recent = await query("SELECT id, stars, comment, flags, author, created_at FROM reviews WHERE restaurant_id=$1 AND status='live' ORDER BY created_at DESC LIMIT 8", [id]);
     const tally = await query("SELECT f AS flag, COUNT(*)::int c FROM (SELECT unnest(flags) f FROM reviews WHERE restaurant_id=$1 AND status='live') s GROUP BY f ORDER BY c DESC LIMIT 6", [id]);
     const avg = Number(agg.rows[0].avg) || 0;
     res.json({
@@ -99,7 +99,7 @@ app.get('/api/restaurants/:id', async (req, res) => {
       reviewCount: agg.rows[0].cnt, avgStars: avg,
       score: Math.round(avg * 20), grade: agg.rows[0].cnt > 0 ? GRADE(avg) : null,
       flags: tally.rows,
-      reviews: recent.rows.map((x) => ({ stars: x.stars, comment: x.comment, flags: x.flags, author: x.author, createdAt: x.created_at })),
+      reviews: recent.rows.map((x) => ({ id: x.id, stars: x.stars, comment: x.comment, flags: x.flags, author: x.author, createdAt: x.created_at })),
     });
   } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
 });
@@ -127,6 +127,19 @@ app.post('/api/restaurants/:id/reviews', writeLimiter, async (req, res) => {
     const agg = await query("SELECT COUNT(*)::int cnt, COALESCE(AVG(stars),0)::float avg FROM reviews WHERE restaurant_id=$1 AND status='live'", [id]);
     const avg = Number(agg.rows[0].avg) || 0;
     res.json({ ok: true, reviewCount: agg.rows[0].cnt, avgStars: avg, score: Math.round(avg * 20), grade: GRADE(avg) });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
+});
+
+// Report a review — auto-hides once enough people flag it.
+const AUTO_HIDE_REPORTS = 5;
+app.post('/api/reviews/:id/report', writeLimiter, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!isFinite(id)) return res.status(400).json({ error: 'bad id' });
+  try {
+    const { rows } = await query(
+      "UPDATE reviews SET reports = reports + 1, status = CASE WHEN reports + 1 >= $2 THEN 'hidden' ELSE status END WHERE id=$1 AND status='live' RETURNING status",
+      [id, AUTO_HIDE_REPORTS]);
+    res.json({ ok: true, hidden: rows.length ? rows[0].status === 'hidden' : true });
   } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
 });
 
@@ -420,6 +433,31 @@ app.post('/api/admin/clear-seed', adminAuth, async (_req, res) => {
     const r = await query("DELETE FROM restaurants WHERE source='seed'");
     res.json({ ok: true, deleted: r.rowCount });
   } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
+});
+
+// Moderation: recent + most-reported reviews first.
+app.get('/api/admin/reviews', adminAuth, async (_req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT rv.id, rv.stars, rv.comment, rv.flags, rv.author, rv.reports, rv.status, rv.created_at,
+             r.name AS restaurant, r.city
+      FROM reviews rv JOIN restaurants r ON r.id = rv.restaurant_id
+      ORDER BY (rv.reports > 0) DESC, rv.reports DESC, rv.created_at DESC
+      LIMIT 100`);
+    res.json({ reviews: rows.map((x) => ({ id: x.id, stars: x.stars, comment: x.comment, flags: x.flags, author: x.author, reports: x.reports, status: x.status, createdAt: x.created_at, restaurant: x.restaurant, city: x.city })) });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
+});
+app.post('/api/admin/reviews/:id/hide', adminAuth, async (req, res) => {
+  try { await query("UPDATE reviews SET status='hidden' WHERE id=$1", [parseInt(req.params.id, 10)]); res.json({ ok: true }); }
+  catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
+});
+app.post('/api/admin/reviews/:id/unhide', adminAuth, async (req, res) => {
+  try { await query("UPDATE reviews SET status='live', reports=0 WHERE id=$1", [parseInt(req.params.id, 10)]); res.json({ ok: true }); }
+  catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
+});
+app.delete('/api/admin/reviews/:id', adminAuth, async (req, res) => {
+  try { await query('DELETE FROM reviews WHERE id=$1', [parseInt(req.params.id, 10)]); res.json({ ok: true }); }
+  catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
 });
 
 app.get('/admin', adminAuth, (_req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));

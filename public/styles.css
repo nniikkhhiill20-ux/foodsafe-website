@@ -151,6 +151,9 @@ section{padding:74px 0}
 .cmt{border-left:2px solid var(--line);padding:2px 0 2px 12px}
 .cmt .meta{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
 .cmt .meta .st{color:var(--gold)}
+.cmt .meta .reportrev{color:var(--muted);text-decoration:none}
+.cmt .meta .reportrev:hover{color:var(--red);text-decoration:underline}
+.cmt .meta .reportrev.reported{color:var(--muted);pointer-events:none;text-decoration:none}
 .cmt p{margin:3px 0 0;font-size:14px;line-height:1.5}
 .rev-form{border-top:1px dashed var(--line);margin-top:16px;padding-top:18px}
 .starpick{display:flex;gap:6px;font-size:30px;line-height:1;margin:8px 0 4px}

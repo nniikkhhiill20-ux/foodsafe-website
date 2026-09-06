@@ -26,6 +26,17 @@
   .trow .r{font-family:var(--f-mono);color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
   .trow .sc{font-family:var(--f-display);font-size:18px;width:40px;text-align:center;border-radius:8px;color:#fff}
   @media(max-width:860px){.admin-grid{grid-template-columns:1fr}#natmap{height:420px}}
+  .mod-panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-top:24px}
+  .mod-panel h3{font-family:var(--f-body);font-weight:700;font-size:15px;padding:14px 18px;border-bottom:1px solid var(--line)}
+  .modrow{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;padding:13px 18px;border-bottom:1px solid var(--line)}
+  .modrow:last-child{border-bottom:none}
+  .modrow.hidden-row{opacity:.55}
+  .modmain{min-width:0;font-size:14px}
+  .modmain .r{color:var(--muted);font-size:12.5px}
+  .modmain .rep{background:var(--bg-danger,#FCEBEB);color:var(--red);font-family:var(--f-mono);font-size:11px;padding:2px 7px;border-radius:999px;margin-left:4px}
+  .modcmt{color:var(--muted);font-size:13px;margin-top:4px}
+  .modbtns{display:flex;gap:6px;flex:none}
+  .modbtns .mod{padding:6px 12px;font-size:12.5px}
 </style>
 </head>
 <body>
@@ -56,6 +67,11 @@
     <div style="margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <button class="btn btn-ghost" id="clearSeedBtn">Clear sample (seed) data</button>
       <span class="mono" id="clearSeedMsg" style="font-size:11.5px;color:var(--muted)">Removes the fictional launch restaurants and their reviews. Real (community/OSM) data stays.</span>
+    </div>
+
+    <div class="mod-panel">
+      <h3>Moderation — reported &amp; recent reviews (flagged first)</h3>
+      <div id="modRows"></div>
     </div>
   </div>
 </div>

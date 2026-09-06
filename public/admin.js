@@ -40,6 +40,36 @@
     }).join('');
     document.getElementById('cityRows').innerHTML = rows || '<div class="trow"><span>No data yet</span></div>';
   }
+  async function loadModeration() {
+    var wrap = document.getElementById('modRows'); if (!wrap) return;
+    try {
+      var r = await fetch('/api/admin/reviews'); var d = await r.json();
+      var list = d.reviews || [];
+      wrap.innerHTML = list.map(function (x) {
+        var stars = ''; for (var i = 0; i < x.stars; i++) stars += '★';
+        return '<div class="modrow' + (x.status === 'hidden' ? ' hidden-row' : '') + '">' +
+          '<div class="modmain"><b>' + esc(x.restaurant) + '</b>' + (x.city ? ' <span class="r">· ' + esc(x.city) + '</span>' : '') +
+            ' <span class="r">· ' + stars + '</span>' + (x.reports ? '<span class="rep">⚑ ' + x.reports + '</span>' : '') + (x.status === 'hidden' ? '<span class="rep">hidden</span>' : '') +
+            '<div class="modcmt">' + esc(x.comment || '(no comment)') + ' — ' + esc(x.author || 'Anonymous') + '</div></div>' +
+          '<div class="modbtns">' +
+            (x.status === 'hidden'
+              ? '<button class="btn btn-ghost mod" data-act="unhide" data-id="' + x.id + '">Unhide</button>'
+              : '<button class="btn btn-ghost mod" data-act="hide" data-id="' + x.id + '">Hide</button>') +
+            '<button class="btn btn-ghost mod" data-act="delete" data-id="' + x.id + '">Delete</button>' +
+          '</div></div>';
+      }).join('') || '<div class="modrow"><span class="modmain">No reviews yet.</span></div>';
+      Array.prototype.forEach.call(wrap.querySelectorAll('.mod'), function (b) {
+        b.onclick = function () { modAction(b.getAttribute('data-act'), b.getAttribute('data-id')); };
+      });
+    } catch (e) { wrap.innerHTML = '<div class="modrow"><span class="modmain">Could not load reviews.</span></div>'; }
+  }
+  async function modAction(act, id) {
+    if (act === 'delete' && !confirm('Delete this review permanently?')) return;
+    var url = '/api/admin/reviews/' + id + (act === 'delete' ? '' : '/' + act);
+    try { await fetch(url, { method: act === 'delete' ? 'DELETE' : 'POST' }); loadModeration(); load(); }
+    catch (e) {}
+  }
+
   var clearBtn = document.getElementById('clearSeedBtn');
   if (clearBtn) clearBtn.onclick = async function () {
     if (!confirm('Delete all fictional sample (seed) restaurants and their reviews? Real community/OSM data is kept. This cannot be undone.')) return;
@@ -55,4 +85,5 @@
   };
 
   load();
+  loadModeration();
 })();
