@@ -405,9 +405,30 @@
     } catch (e) { sec.hidden = true; }
   }
 
+  // ---------------- public national map ----------------
+  var natMap;
+  function initNationalMap() {
+    var el = document.getElementById('natmapPublic');
+    if (!el || natMap) return;
+    natMap = L.map('natmapPublic', { scrollWheelZoom: false }).setView([22.5, 80], 4);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(natMap);
+    var layer = L.layerGroup().addTo(natMap);
+    api('/api/national/map').then(function (d) {
+      (d.outlets || []).forEach(function (o) {
+        var col = o.grade ? gradeColor(o.grade) : COLORS.none;
+        var radius = Math.min(5 + Math.sqrt(Number(o.reviewCount) || 0) * 1.6, 22);
+        L.circleMarker([o.lat, o.lng], { radius: radius, color: '#fff', weight: 1, fillColor: col, fillOpacity: 0.75 })
+          .bindPopup('<b>' + esc(o.name) + '</b><br>' + esc(o.city || '') + '<br>' + (o.grade ? 'Grade ' + o.grade + ' · ' + o.score + '/100' : 'unrated') + ' · ' + nfmt(o.reviewCount) + ' reviews')
+          .addTo(layer);
+      });
+      setTimeout(function () { natMap.invalidateSize(); }, 200);
+    }).catch(function () {});
+  }
+
   // ---------------- init ----------------
   if (localStorage.getItem(PKEY) && localStorage.getItem(NKEY)) showCertificate(localStorage.getItem(NKEY), localStorage.getItem(NUMKEY), localStorage.getItem(DKEY));
   setTimeout(function () { map.invalidateSize(); loadForView(true); }, 100);
   loadStats();
   loadMyReviews();
+  initNationalMap();
 })();

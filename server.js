@@ -186,6 +186,11 @@ app.get('/api/my/reviews', async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
 });
 
+// Public national map data (read-only) — same aggregates, no auth.
+app.get('/api/national/map', async (_req, res) => {
+  try { res.json(await nationalMapData()); } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
+});
+
 // National stats (real, live).
 app.get('/api/stats', async (_req, res) => {
   try {
@@ -382,29 +387,31 @@ function adminAuth(req, res, next) {
   res.status(401).send('Authentication required.');
 }
 
-// Every live outlet with aggregates, for the national map.
+// Every live outlet with aggregates, for the national map (public, read-only data).
+async function nationalMapData() {
+  const { rows } = await query(`
+    SELECT r.id, r.name, r.city, r.lat, r.lng, r.source,
+      COALESCE(a.cnt,0)::int AS review_count, COALESCE(a.avg,0)::float AS avg_stars
+    FROM restaurants r
+    LEFT JOIN (SELECT restaurant_id, COUNT(*) cnt, AVG(stars) avg FROM reviews WHERE status='live' GROUP BY restaurant_id) a ON a.restaurant_id=r.id
+    WHERE r.status='live' ORDER BY review_count DESC;`);
+  const outlets = rows.map((r) => ({
+    id: r.id, name: r.name, city: r.city, lat: r.lat, lng: r.lng, source: r.source,
+    reviewCount: r.review_count, avgStars: Number(r.avg_stars) || 0,
+    score: Math.round((Number(r.avg_stars) || 0) * 20), grade: r.review_count > 0 ? GRADE(Number(r.avg_stars)) : null,
+  }));
+  const cityMap = {};
+  for (const o of outlets) {
+    const k = o.city || 'Unknown';
+    if (!cityMap[k]) cityMap[k] = { city: k, outlets: 0, reviews: 0, starSum: 0 };
+    cityMap[k].outlets++; cityMap[k].reviews += o.reviewCount; cityMap[k].starSum += o.avgStars * o.reviewCount;
+  }
+  const cities = Object.values(cityMap).map((c) => ({ city: c.city, outlets: c.outlets, reviews: c.reviews, avgScore: c.reviews ? Math.round((c.starSum / c.reviews) * 20) : 0 })).sort((a, b) => b.reviews - a.reviews);
+  return { outlets, cities };
+}
+
 app.get('/api/admin/map', adminAuth, async (_req, res) => {
-  try {
-    const { rows } = await query(`
-      SELECT r.id, r.name, r.city, r.lat, r.lng, r.source,
-        COALESCE(a.cnt,0)::int AS review_count, COALESCE(a.avg,0)::float AS avg_stars
-      FROM restaurants r
-      LEFT JOIN (SELECT restaurant_id, COUNT(*) cnt, AVG(stars) avg FROM reviews WHERE status='live' GROUP BY restaurant_id) a ON a.restaurant_id=r.id
-      WHERE r.status='live' ORDER BY review_count DESC;`);
-    const outlets = rows.map((r) => ({
-      id: r.id, name: r.name, city: r.city, lat: r.lat, lng: r.lng, source: r.source,
-      reviewCount: r.review_count, avgStars: Number(r.avg_stars) || 0,
-      score: Math.round((Number(r.avg_stars) || 0) * 20), grade: r.review_count > 0 ? GRADE(Number(r.avg_stars)) : null,
-    }));
-    const cityMap = {};
-    for (const o of outlets) {
-      const k = o.city || 'Unknown';
-      if (!cityMap[k]) cityMap[k] = { city: k, outlets: 0, reviews: 0, starSum: 0 };
-      cityMap[k].outlets++; cityMap[k].reviews += o.reviewCount; cityMap[k].starSum += o.avgStars * o.reviewCount;
-    }
-    const cities = Object.values(cityMap).map((c) => ({ city: c.city, outlets: c.outlets, reviews: c.reviews, avgScore: c.reviews ? Math.round((c.starSum / c.reviews) * 20) : 0 })).sort((a, b) => b.reviews - a.reviews);
-    res.json({ outlets, cities });
-  } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
+  try { res.json(await nationalMapData()); } catch (e) { console.error(e); res.status(500).json({ error: 'server' }); }
 });
 
 // Delete the fictional sample data (source='seed') and its reviews.
